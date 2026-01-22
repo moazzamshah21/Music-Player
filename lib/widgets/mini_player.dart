@@ -1,77 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:umarplayer/models/media_item.dart';
 import 'package:umarplayer/theme/app_colors.dart';
-import 'package:umarplayer/services/liked_songs_service.dart';
 
-class MiniPlayer extends StatefulWidget {
+class MiniPlayer extends StatelessWidget {
   final MediaItem? currentItem;
   final bool isPlaying;
+  final bool isLiked;
   final VoidCallback? onPlayPause;
   final VoidCallback? onTap;
+  final VoidCallback? onFavorite;
 
   const MiniPlayer({
     super.key,
     this.currentItem,
     this.isPlaying = false,
+    this.isLiked = false,
     this.onPlayPause,
     this.onTap,
+    this.onFavorite,
   });
 
   @override
-  State<MiniPlayer> createState() => _MiniPlayerState();
-}
-
-class _MiniPlayerState extends State<MiniPlayer> {
-  bool _isLiked = false;
-  bool _isCheckingLike = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkLikeStatus();
-  }
-
-  @override
-  void didUpdateWidget(MiniPlayer oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.currentItem?.id != widget.currentItem?.id) {
-      _checkLikeStatus();
-    }
-  }
-
-  Future<void> _checkLikeStatus() async {
-    if (widget.currentItem == null) {
-      setState(() {
-        _isLiked = false;
-        _isCheckingLike = false;
-      });
-      return;
-    }
-
-    final isLiked = await LikedSongsService.isLiked(widget.currentItem!.id);
-    setState(() {
-      _isLiked = isLiked;
-      _isCheckingLike = false;
-    });
-  }
-
-  Future<void> _toggleLike() async {
-    if (widget.currentItem == null) return;
-
-    final newLikeStatus = await LikedSongsService.toggleLike(widget.currentItem!);
-    setState(() {
-      _isLiked = newLikeStatus;
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (widget.currentItem == null) {
+    if (currentItem == null) {
       return const SizedBox.shrink();
     }
 
     return GestureDetector(
-      onTap: widget.onTap,
+      onTap: onTap,
       child: Container(
         height: 70,
         padding: const EdgeInsets.symmetric(horizontal: 0),
@@ -94,11 +50,11 @@ class _MiniPlayerState extends State<MiniPlayer> {
                 color: AppColors.surfaceVariant,
                 borderRadius: BorderRadius.circular(0),
               ),
-              child: widget.currentItem!.imageUrl != null
+              child: currentItem!.imageUrl != null
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(4),
                       child: Image.network(
-                        widget.currentItem!.imageUrl!,
+                        currentItem!.imageUrl!,
                         fit: BoxFit.cover,
                       ),
                     )
@@ -116,7 +72,7 @@ class _MiniPlayerState extends State<MiniPlayer> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    widget.currentItem!.title,
+                    currentItem!.title,
                     style: const TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 14,
@@ -127,7 +83,7 @@ class _MiniPlayerState extends State<MiniPlayer> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    widget.currentItem!.artist ?? 'Devices Available',
+                    currentItem!.artist ?? 'Devices Available',
                     style: const TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 12,
@@ -141,19 +97,19 @@ class _MiniPlayerState extends State<MiniPlayer> {
             // Icons
             IconButton(
               icon: Icon(
-                _isLiked ? Icons.favorite : Icons.favorite_outline,
-                color: _isLiked ? Colors.red : AppColors.textPrimary,
+                isLiked ? Icons.favorite : Icons.favorite_outline,
+                color: isLiked ? Colors.red : AppColors.textPrimary,
                 size: 24,
               ),
-              onPressed: _isCheckingLike ? null : _toggleLike,
+              onPressed: onFavorite,
             ),
             IconButton(
               icon: Icon(
-                widget.isPlaying ? Icons.pause : Icons.play_arrow,
+                isPlaying ? Icons.pause : Icons.play_arrow,
                 color: AppColors.textPrimary,
                 size: 28,
               ),
-              onPressed: widget.onPlayPause,
+              onPressed: onPlayPause,
             ),
           ],
         ),

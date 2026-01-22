@@ -38,13 +38,20 @@ class PlayerService {
 
   Future<void> playMediaItem(MediaItem item) async {
     try {
+      // Stop and pause current playback completely before switching
+      if (audioPlayer.playing) {
+        await audioPlayer.pause();
+      }
+      await audioPlayer.stop();
+      // Wait a brief moment to ensure previous audio is fully stopped
+      await Future.delayed(const Duration(milliseconds: 100));
+      
       _currentItem = item;
       
       // Check if song is downloaded locally first
       final localFilePath = await DownloadsService.getLocalFilePath(item.id);
       if (localFilePath != null) {
         print('Playing local file: $localFilePath');
-        await audioPlayer.stop();
         await audioPlayer.setFilePath(localFilePath);
         await _waitForPlayerReady();
         await audioPlayer.play();
@@ -63,9 +70,6 @@ class PlayerService {
       }
 
       print('Audio stream obtained: ${audioStreamInfo.bitrate}bps, codec: ${audioStreamInfo.codec}');
-
-      // Stop current playback if any
-      await audioPlayer.stop();
       
       // Use AudioSource.uri with headers to bypass YouTube's 403 error
       try {

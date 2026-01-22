@@ -24,6 +24,10 @@ class _LikedSongsScreenState extends State<LikedSongsScreen> {
   void initState() {
     super.initState();
     _loadLikedSongs();
+    // Listen to liked status changes to refresh the list
+    _playerController.isLiked.listen((isLiked) {
+      _loadLikedSongs();
+    });
   }
 
   Future<void> _loadLikedSongs() async {
@@ -72,6 +76,11 @@ class _LikedSongsScreenState extends State<LikedSongsScreen> {
   Future<void> _removeLikedSong(MediaItem item) async {
     await LikedSongsService.removeLikedSong(item.id);
     await _loadLikedSongs();
+    
+    // Update player controller's liked status if this is the current song
+    if (_playerController.currentItem.value?.id == item.id) {
+      _playerController.isLiked.value = false;
+    }
     
     Get.snackbar(
       'Removed',
@@ -132,8 +141,10 @@ class _LikedSongsScreenState extends State<LikedSongsScreen> {
                   child: MiniPlayer(
                     currentItem: _playerController.currentItem.value,
                     isPlaying: _playerController.isPlaying.value,
+                    isLiked: _playerController.isLiked.value,
                     onPlayPause: () => _playerController.playPause(),
                     onTap: _openPlayerScreen,
+                    onFavorite: () => _playerController.toggleFavorite(),
                   ),
                 )
               : const SizedBox.shrink()),

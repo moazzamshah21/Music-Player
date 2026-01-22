@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:umarplayer/models/media_item.dart';
 import 'package:umarplayer/services/downloads_service.dart';
+import 'package:umarplayer/theme/app_colors.dart';
 
 class DownloadsController extends GetxController {
   final RxMap<String, double> downloadProgress = <String, double>{}.obs;
@@ -81,6 +82,15 @@ class DownloadsController extends GetxController {
       
       // Reload to ensure file exists
       await loadDownloadedSongs();
+      
+      // Show success notification
+      Get.snackbar(
+        'Download Complete',
+        '${song.title} is ready to play',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.surface,
+        duration: const Duration(seconds: 2),
+      );
     } catch (e) {
       // Download failed
       isDownloading[song.id] = false;

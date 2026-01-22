@@ -139,8 +139,10 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                   child: MiniPlayer(
                     currentItem: _playerController.currentItem.value,
                     isPlaying: _playerController.isPlaying.value,
+                    isLiked: _playerController.isLiked.value,
                     onPlayPause: () => _playerController.playPause(),
                     onTap: _openPlayerScreen,
+                    onFavorite: () => _playerController.toggleFavorite(),
                   ),
                 )
               : const SizedBox.shrink()),
