@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:umarplayer/theme/app_colors.dart';
 import 'package:umarplayer/data/home_data.dart';
-import 'package:umarplayer/widgets/quick_access_card.dart';
 import 'package:umarplayer/widgets/media_card.dart';
 import 'package:umarplayer/widgets/mini_player.dart';
 import 'package:umarplayer/models/media_item.dart';
@@ -21,21 +20,6 @@ class _HomeState extends State<Home> {
   final HomeController _homeController = Get.find<HomeController>();
   final PlayerController _playerController = Get.find<PlayerController>();
   final HomeData _homeData = HomeData();
-  
-  List<QuickAccessItem> _quickAccessItems = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadQuickAccess();
-  }
-
-  Future<void> _loadQuickAccess() async {
-    final quickAccess = await _homeData.getQuickAccessItems();
-    setState(() {
-      _quickAccessItems = quickAccess;
-    });
-  }
 
   Future<void> _playMediaItem(MediaItem item) async {
     try {
@@ -83,40 +67,20 @@ class _HomeState extends State<Home> {
 
   @override
   Widget build(BuildContext context) {
-    // Calculate expanded height based on content
-    final safeAreaTop = MediaQuery.of(context).padding.top;
-    final titleHeight = 40.0; // Title text + padding
-    final titleSpacing = 16.0;
-    final gridRows = (_quickAccessItems.length / 2).ceil(); // 2 columns
-    final cardHeight = 60.0;
-    final gridSpacing = 12.0;
-    final gridHeight = (gridRows * cardHeight) + ((gridRows - 1) * gridSpacing);
-    final padding = 16.0; // Top and bottom padding
-    final expandedHeight = safeAreaTop + titleHeight + titleSpacing + gridHeight + padding;
-    final collapsedHeight = 60.0; // Small collapsed height
-
     return Stack(
       children: [
         // Main Content
         CustomScrollView(
           slivers: [
-            // App Bar with Gradient, Good evening, and Tabs
+            // App Bar with Gradient and Good evening
             SliverAppBar(
-              expandedHeight: expandedHeight,
-              collapsedHeight: collapsedHeight,
+              expandedHeight: 65,
+              collapsedHeight: 60,
               floating: true,
               pinned: true,
               elevation: 0,
               backgroundColor: AppColors.background,
-              toolbarHeight: collapsedHeight,
-              // title: const Text(
-              //   'Good evening',
-              //   style: TextStyle(
-              //     color: AppColors.textPrimary,
-              //     fontSize: 20,
-              //     fontWeight: FontWeight.bold,
-              //   ),
-              // ),
+              toolbarHeight: 60,
               actions: [
                 IconButton(
                   icon: const Icon(
@@ -140,48 +104,17 @@ class _HomeState extends State<Home> {
                   ),
                   child: SafeArea(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(8, 8, 8, 15),
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          // Top row with title and settings
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'Good evening',
-                                style: TextStyle(
-                                  color: AppColors.textPrimary,
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              // IconButton(
-                              //   icon: const Icon(
-                              //     Icons.settings,
-                              //     color: AppColors.textPrimary,
-                              //   ),
-                              //   onPressed: () {},
-                              // ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          // Quick Access Grid
-                          Expanded(
-                            child: GridView.builder(
-                              physics: const NeverScrollableScrollPhysics(),
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                crossAxisSpacing: 12,
-                                mainAxisSpacing: 12,
-                                childAspectRatio: 2.5,
-                              ),
-                              itemCount: _quickAccessItems.length,
-                              itemBuilder: (context, index) {
-                                return QuickAccessCard(
-                                  item: _quickAccessItems[index],
-                                );
-                              },
+                          const Text(
+                            'Good evening',
+                            style: TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ],
@@ -200,7 +133,7 @@ class _HomeState extends State<Home> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(height: 25),
+                      const SizedBox(height: 24),
                       // Recently Played section
                       const Text(
                         'Recently Played',
