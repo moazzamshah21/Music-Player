@@ -98,7 +98,12 @@ class _SearchState extends State<Search> {
 
   Future<void> _playMediaItem(MediaItem item) async {
     try {
-      await _playerController.playMediaItem(item);
+      // Pass search results as queue when playing from search
+      if (_searchResults.isNotEmpty) {
+        await _playerController.playMediaItem(item, queue: _searchResults);
+      } else {
+        await _playerController.playMediaItem(item);
+      }
       
       Get.snackbar(
         'Playing',

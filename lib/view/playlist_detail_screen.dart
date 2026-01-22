@@ -47,7 +47,12 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
 
   Future<void> _playMediaItem(MediaItem item) async {
     try {
-      await _playerController.playMediaItem(item);
+      // Pass the playlist songs as queue when playing from playlist
+      if (_playlist != null && _playlist!.songs.isNotEmpty) {
+        await _playerController.playMediaItem(item, queue: _playlist!.songs);
+      } else {
+        await _playerController.playMediaItem(item);
+      }
       
       Get.snackbar(
         'Playing',

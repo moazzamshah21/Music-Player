@@ -44,7 +44,12 @@ class _LikedSongsScreenState extends State<LikedSongsScreen> {
 
   Future<void> _playMediaItem(MediaItem item) async {
     try {
-      await _playerController.playMediaItem(item);
+      // Pass the liked songs as queue when playing from liked songs
+      if (_likedSongs.isNotEmpty) {
+        await _playerController.playMediaItem(item, queue: _likedSongs);
+      } else {
+        await _playerController.playMediaItem(item);
+      }
       
       Get.snackbar(
         'Playing',
