@@ -2,61 +2,73 @@ import 'dart:async';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import 'package:umarplayer/models/media_item.dart';
 
+// Cache entry for search results
+class _CachedResult {
+  final List<MediaItem> items;
+  final DateTime timestamp;
+  static const _cacheExpiry = Duration(minutes: 30);
+  
+  _CachedResult(this.items) : timestamp = DateTime.now();
+  
+  bool get isExpired => DateTime.now().difference(timestamp) > _cacheExpiry;
+}
+
 class YouTubeService {
   final YoutubeExplode _ytExplode = YoutubeExplode();
+  
+  // Simple in-memory cache for search results (expires after 30 minutes)
+  final Map<String, _CachedResult> _searchCache = {};
 
-  // Search for videos - Optimized for faster loading
+  // Search for videos - Optimized for faster loading with caching
+  // Uses search result data directly to avoid extra API calls
   Future<List<MediaItem>> searchVideos(String query, {int limit = 10}) async {
     try {
+      // Check cache first
+      final cacheKey = '$query:$limit';
+      final cached = _searchCache[cacheKey];
+      if (cached != null && !cached.isExpired) {
+        print('Using cached results for: $query');
+        return cached.items;
+      }
+      
       final searchResults = await _ytExplode.search.search(query);
       final videos = searchResults.take(limit).toList();
 
-      // Process videos in parallel but with timeout per video
-      final List<Future<MediaItem?>> futures = videos.map((video) async {
-        try {
-          // Get only video info first (faster), skip manifest check for search
-          final videoInfo = await _ytExplode.videos.get(video.id).timeout(
-            const Duration(seconds: 5),
-            onTimeout: () => throw TimeoutException('Video fetch timeout'),
-          );
-
-          return MediaItem(
-            id: videoInfo.id.value,
-            title: videoInfo.title,
-            artist: videoInfo.author,
-            imageUrl: videoInfo.thumbnails.highResUrl.isNotEmpty
-                ? videoInfo.thumbnails.highResUrl
-                : (videoInfo.thumbnails.mediumResUrl.isNotEmpty
-                    ? videoInfo.thumbnails.mediumResUrl
-                    : ''),
-            type: 'song',
-            duration: videoInfo.duration,
-            description: videoInfo.description,
-            viewCount: videoInfo.engagement.viewCount,
-            uploadDate: videoInfo.uploadDate,
-          );
-        } catch (e) {
-          // Skip videos that fail to load
-          print('Error fetching video ${video.id}: $e');
-          return null;
-        }
+      // Use search result data directly - much faster than fetching full video details
+      // Only fetch full details if we need additional info (lazy loading)
+      final List<MediaItem> mediaItems = videos.map((video) {
+        return MediaItem(
+          id: video.id.value,
+          title: video.title,
+          artist: video.author,
+          imageUrl: video.thumbnails.highResUrl.isNotEmpty
+              ? video.thumbnails.highResUrl
+              : (video.thumbnails.mediumResUrl.isNotEmpty
+                  ? video.thumbnails.mediumResUrl
+                  : video.thumbnails.lowResUrl.isNotEmpty
+                      ? video.thumbnails.lowResUrl
+                      : ''),
+          type: 'song',
+          duration: video.duration,
+          description: video.description,
+        );
       }).toList();
       
-      // Wait for all videos with overall timeout
-      final results = await Future.wait(futures).timeout(
-        const Duration(seconds: 20),
-        onTimeout: () {
-          print('Search timeout for query: $query');
-          return List<MediaItem?>.filled(futures.length, null);
-        },
-      );
+      // Cache the results
+      _searchCache[cacheKey] = _CachedResult(mediaItems);
       
-      // Filter out null results and return
-      return results.whereType<MediaItem>().toList();
+      // Clean up expired cache entries periodically
+      _cleanExpiredCache();
+      
+      return mediaItems;
     } catch (e) {
       print('Error searching videos: $e');
       return [];
     }
+  }
+  
+  void _cleanExpiredCache() {
+    _searchCache.removeWhere((key, value) => value.isExpired);
   }
 
   // Get complete video details by ID
@@ -205,9 +217,12 @@ class YouTubeService {
     }
   }
   
-  // Get audio stream info directly (alternative method) - Uses ytClients to avoid 403
+  // Get audio stream info directly - Optimized to get ONLY audio stream manifest
+  // This is fast because it only fetches stream metadata, not the full video
   Future<AudioOnlyStreamInfo?> getAudioStreamInfo(String videoId) async {
     try {
+      // Get manifest which contains stream URLs - this is fast, doesn't download video
+      // Using multiple clients for better compatibility
       final manifest = await _ytExplode.videos.streams.getManifest(
         videoId,
         ytClients: [
@@ -215,13 +230,32 @@ class YouTubeService {
           YoutubeApiClient.androidVr,
         ],
       );
+      
+      // Get ONLY audio streams (not video) - this is what we want
       final audioStreams = manifest.audioOnly;
-      if (audioStreams.isNotEmpty) {
-        return audioStreams.withHighestBitrate();
+      
+      if (audioStreams.isEmpty) {
+        print('No audio-only streams available for video: $videoId');
+        return null;
       }
-      return null;
+      
+      // Get the best quality audio stream (highest bitrate)
+      final bestAudio = audioStreams.withHighestBitrate();
+      print('Selected audio stream: ${bestAudio.bitrate}bps, codec: ${bestAudio.codec}');
+      
+      return bestAudio;
     } catch (e) {
       print('Error getting audio stream info: $e');
+      // Try with default client as fallback
+      try {
+        final manifest = await _ytExplode.videos.streams.getManifest(videoId);
+        final audioStreams = manifest.audioOnly;
+        if (audioStreams.isNotEmpty) {
+          return audioStreams.withHighestBitrate();
+        }
+      } catch (e2) {
+        print('Fallback also failed: $e2');
+      }
       return null;
     }
   }

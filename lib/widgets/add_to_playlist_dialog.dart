@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:umarplayer/theme/app_colors.dart';
 import 'package:umarplayer/models/media_item.dart';
 import 'package:umarplayer/services/liked_songs_service.dart';
@@ -98,7 +97,7 @@ class _AddToPlaylistDialogState extends State<AddToPlaylistDialog> {
                     Icons.close,
                     color: AppColors.textPrimary,
                   ),
-                  onPressed: () => Get.back(),
+                  onPressed: () => Navigator.pop(context),
                 ),
               ],
             ),
@@ -213,7 +212,7 @@ class _AddToPlaylistDialogState extends State<AddToPlaylistDialog> {
   Widget _buildSongItem(MediaItem song) {
     return InkWell(
       onTap: () {
-        Get.back(result: song);
+        Navigator.pop(context, song);
       },
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),

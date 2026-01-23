@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:provider/provider.dart';
 import 'package:umarplayer/theme/app_colors.dart';
 import 'package:umarplayer/models/media_item.dart';
-import 'package:umarplayer/services/recent_searches_service.dart';
-import 'package:umarplayer/services/youtube_service.dart';
-import 'package:umarplayer/controllers/player_controller.dart';
+import 'package:umarplayer/providers/player_provider.dart';
+import 'package:umarplayer/providers/search_provider.dart';
 import 'package:umarplayer/widgets/mini_player.dart';
 import 'package:umarplayer/view/player_screen.dart';
 import 'package:umarplayer/services/playlists_service.dart';
@@ -17,130 +16,11 @@ class Search extends StatefulWidget {
 }
 
 class _SearchState extends State<Search> {
-  final TextEditingController _searchController = TextEditingController();
-  final YouTubeService _youtubeService = YouTubeService();
-  final PlayerController _playerController = Get.find<PlayerController>();
-  
-  List<MediaItem> _recentSearches = [];
-  List<MediaItem> _searchResults = [];
-  bool _isSearching = false;
-  bool _isLoading = false;
-  String _currentQuery = '';
-
-  @override
-  void initState() {
-    super.initState();
-    _loadRecentSearches();
-  }
-
-  Future<void> _loadRecentSearches() async {
-    final searches = await RecentSearchesService.getRecentSearches();
-    setState(() {
-      _recentSearches = searches;
-    });
-  }
-
-  Future<void> _performSearch(String query) async {
-    if (query.trim().isEmpty) {
-      setState(() {
-        _isSearching = false;
-        _searchResults = [];
-        _currentQuery = '';
-      });
-      return;
-    }
-
-    setState(() {
-      _isSearching = true;
-      _isLoading = true;
-      _currentQuery = query;
-    });
-
-    try {
-      // Search for videos/artists
-      final results = await _youtubeService.searchVideos(query, limit: 20);
-      
-      // If we have results, add the first one as a recent search (as an artist)
-      if (results.isNotEmpty) {
-        final firstResult = results.first;
-        // Use artist name as the identifier for recent searches
-        final artistName = firstResult.artist ?? query;
-        // Create an artist representation from the first result
-        // Use a hash of the artist name as ID to ensure uniqueness per artist
-        final artistItem = MediaItem(
-          id: 'artist_${artistName.hashCode}',
-          title: artistName,
-          artist: firstResult.artist,
-          imageUrl: firstResult.imageUrl,
-          type: 'artist',
-        );
-        await RecentSearchesService.addSearch(artistItem);
-        await _loadRecentSearches();
-      }
-
-      setState(() {
-        _searchResults = results;
-        _isLoading = false;
-      });
-    } catch (e) {
-      print('Error performing search: $e');
-      setState(() {
-        _isLoading = false;
-        _searchResults = [];
-      });
-    }
-  }
-
-  Future<void> _removeRecentSearch(String id) async {
-    await RecentSearchesService.removeSearch(id);
-    await _loadRecentSearches();
-  }
-
-  Future<void> _playMediaItem(MediaItem item) async {
-    try {
-      // Pass search results as queue when playing from search
-      if (_searchResults.isNotEmpty) {
-        await _playerController.playMediaItem(item, queue: _searchResults);
-      } else {
-        await _playerController.playMediaItem(item);
-      }
-      
-      Get.snackbar(
-        'Playing',
-        item.title,
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: AppColors.surface,
-        duration: const Duration(seconds: 1),
-      );
-    } catch (e) {
-      String errorMessage = 'Error playing song';
-      if (e.toString().contains('MissingPluginException')) {
-        errorMessage = 'Audio plugin not initialized. Please restart the app.';
-      } else if (e.toString().contains('stream URL') || e.toString().contains('audio stream')) {
-        errorMessage = 'Could not get audio stream. Please try another song.';
-      } else {
-        errorMessage = 'Error: ${e.toString()}';
-      }
-      
-      Get.snackbar(
-        'Error',
-        errorMessage,
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: AppColors.accent,
-        duration: const Duration(seconds: 3),
-      );
-    }
-  }
-
-  void _openPlayerScreen() {
-    if (_playerController.currentItem.value != null) {
-      Get.to(() => const PlayerScreen());
-    }
-  }
+  final TextEditingController _textController = TextEditingController();
 
   @override
   void dispose() {
-    _searchController.dispose();
+    _textController.dispose();
     super.dispose();
   }
 
@@ -164,7 +44,7 @@ class _SearchState extends State<Search> {
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: TextField(
-                    controller: _searchController,
+                    controller: _textController,
                     style: const TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 16,
@@ -182,15 +62,11 @@ class _SearchState extends State<Search> {
                       ),
                     ),
                     onSubmitted: (value) {
-                      _performSearch(value);
+                      Provider.of<SearchProvider>(context, listen: false).performSearch(value);
                     },
                     onChanged: (value) {
                       if (value.isEmpty) {
-                        setState(() {
-                          _isSearching = false;
-                          _searchResults = [];
-                          _currentQuery = '';
-                        });
+                        Provider.of<SearchProvider>(context, listen: false).clearSearch();
                       }
                     },
                   ),
@@ -199,34 +75,49 @@ class _SearchState extends State<Search> {
             ),
             // Content
             Expanded(
-              child: _isSearching
-                  ? _buildSearchResults()
-                  : _buildRecentSearches(),
+              child: Consumer<SearchProvider>(
+                builder: (context, searchProvider, _) {
+                  return searchProvider.isSearching
+                      ? _buildSearchResults(context, searchProvider)
+                      : _buildRecentSearches(context, searchProvider);
+                },
+              ),
             ),
           ],
         ),
         // Mini Player - positioned above bottom nav
-        Obx(() => _playerController.currentItem.value != null
-            ? Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: MiniPlayer(
-                  currentItem: _playerController.currentItem.value,
-                  isPlaying: _playerController.isPlaying.value,
-                  isLiked: _playerController.isLiked.value,
-                  onPlayPause: () => _playerController.playPause(),
-                  onTap: _openPlayerScreen,
-                  onFavorite: () => _playerController.toggleFavorite(),
-                ),
-              )
-            : const SizedBox.shrink()),
+        Consumer<PlayerProvider>(
+          builder: (context, playerProvider, _) {
+            return playerProvider.currentItem != null
+                ? Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: MiniPlayer(
+                      currentItem: playerProvider.currentItem,
+                      isPlaying: playerProvider.isPlaying,
+                      isLiked: playerProvider.isLiked,
+                      onPlayPause: () => playerProvider.playPause(),
+                      onTap: () {
+                        if (playerProvider.currentItem != null) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const PlayerScreen()),
+                          );
+                        }
+                      },
+                      onFavorite: () => playerProvider.toggleFavorite(),
+                    ),
+                  )
+                : const SizedBox.shrink();
+          },
+        ),
       ],
     );
   }
 
-  Widget _buildRecentSearches() {
-    if (_recentSearches.isEmpty) {
+  Widget _buildRecentSearches(BuildContext context, SearchProvider searchProvider) {
+    if (searchProvider.recentSearches.isEmpty) {
       return const Center(
         child: Text(
           'No recent searches',
@@ -251,17 +142,17 @@ class _SearchState extends State<Search> {
           ),
         ),
         const SizedBox(height: 16),
-        ..._recentSearches.map((search) => _buildRecentSearchItem(search)),
+        ...searchProvider.recentSearches.map((search) => _buildRecentSearchItem(context, search, searchProvider)),
         const SizedBox(height: 140), // Space for mini player + bottom nav
       ],
     );
   }
 
-  Widget _buildRecentSearchItem(MediaItem item) {
+  Widget _buildRecentSearchItem(BuildContext context, MediaItem item, SearchProvider searchProvider) {
     return InkWell(
       onTap: () {
-        _searchController.text = item.title;
-        _performSearch(item.title);
+        _textController.text = item.title;
+        searchProvider.performSearch(item.title);
       },
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
@@ -327,7 +218,7 @@ class _SearchState extends State<Search> {
                 color: AppColors.textPrimary,
                 size: 20,
               ),
-              onPressed: () => _removeRecentSearch(item.id),
+              onPressed: () => searchProvider.removeRecentSearch(item.id),
             ),
           ],
         ),
@@ -335,8 +226,8 @@ class _SearchState extends State<Search> {
     );
   }
 
-  Widget _buildSearchResults() {
-    if (_isLoading) {
+  Widget _buildSearchResults(BuildContext context, SearchProvider searchProvider) {
+    if (searchProvider.isLoading) {
       return const Center(
         child: CircularProgressIndicator(
           color: AppColors.textPrimary,
@@ -344,7 +235,7 @@ class _SearchState extends State<Search> {
       );
     }
 
-    if (_searchResults.isEmpty) {
+    if (searchProvider.searchResults.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -356,7 +247,7 @@ class _SearchState extends State<Search> {
             ),
             const SizedBox(height: 16),
             Text(
-              'No results found for "$_currentQuery"',
+              'No results found for "${searchProvider.currentQuery}"',
               style: const TextStyle(
                 color: AppColors.textSecondary,
                 fontSize: 16,
@@ -372,7 +263,7 @@ class _SearchState extends State<Search> {
       children: [
         const SizedBox(height: 8),
         Text(
-          'Search results for "$_currentQuery"',
+          'Search results for "${searchProvider.currentQuery}"',
           style: const TextStyle(
             color: AppColors.textPrimary,
             fontSize: 22,
@@ -380,16 +271,18 @@ class _SearchState extends State<Search> {
           ),
         ),
         const SizedBox(height: 16),
-        ..._searchResults.map((item) => _buildSearchResultItem(item)),
+        ...searchProvider.searchResults.map((item) => _buildSearchResultItem(context, item, searchProvider)),
         const SizedBox(height: 140), // Space for mini player + bottom nav
       ],
     );
   }
 
-  Widget _buildSearchResultItem(MediaItem item) {
+  Widget _buildSearchResultItem(BuildContext context, MediaItem item, SearchProvider searchProvider) {
+    final playerProvider = Provider.of<PlayerProvider>(context, listen: false);
+    
     return InkWell(
-      onTap: () => _playMediaItem(item),
-      onLongPress: () => _showAddToPlaylistMenu(item),
+      onTap: () => _playMediaItem(context, item, searchProvider, playerProvider),
+      onLongPress: () => _showAddToPlaylistMenu(context, item),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(
@@ -458,27 +351,68 @@ class _SearchState extends State<Search> {
     );
   }
 
-  void _showAddToPlaylistMenu(MediaItem song) async {
+  Future<void> _playMediaItem(BuildContext context, MediaItem item, SearchProvider searchProvider, PlayerProvider playerProvider) async {
+    try {
+      // Pass search results as queue when playing from search
+      if (searchProvider.searchResults.isNotEmpty) {
+        await playerProvider.playMediaItem(item, queue: searchProvider.searchResults);
+      } else {
+        await playerProvider.playMediaItem(item);
+      }
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Playing ${item.title}'),
+            backgroundColor: AppColors.surface,
+            duration: const Duration(seconds: 1),
+          ),
+        );
+      }
+    } catch (e) {
+      String errorMessage = 'Error playing song';
+      if (e.toString().contains('MissingPluginException')) {
+        errorMessage = 'Audio plugin not initialized. Please restart the app.';
+      } else if (e.toString().contains('stream URL') || e.toString().contains('audio stream')) {
+        errorMessage = 'Could not get audio stream. Please try another song.';
+      } else {
+        errorMessage = 'Error: ${e.toString()}';
+      }
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: AppColors.accent,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  void _showAddToPlaylistMenu(BuildContext context, MediaItem song) async {
     final playlists = await PlaylistsService.getPlaylists();
     
     if (playlists.isEmpty) {
-      Get.snackbar(
-        'No Playlists',
-        'Create a playlist first',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: AppColors.surface,
-        duration: const Duration(seconds: 2),
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Create a playlist first'),
+          backgroundColor: AppColors.surface,
+          duration: Duration(seconds: 2),
+        ),
       );
       return;
     }
 
-    Get.bottomSheet(
-      Container(
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => Container(
         padding: const EdgeInsets.symmetric(vertical: 8),
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -543,24 +477,28 @@ class _SearchState extends State<Search> {
                       ),
                     ),
                     onTap: () async {
-                      Get.back();
+                      Navigator.pop(context);
                       try {
                         await PlaylistsService.addSongToPlaylist(playlist.id, song);
-                        Get.snackbar(
-                          'Added',
-                          'Added to ${playlist.name}',
-                          snackPosition: SnackPosition.BOTTOM,
-                          backgroundColor: AppColors.surface,
-                          duration: const Duration(seconds: 1),
-                        );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Added to ${playlist.name}'),
+                              backgroundColor: AppColors.surface,
+                              duration: const Duration(seconds: 1),
+                            ),
+                          );
+                        }
                       } catch (e) {
-                        Get.snackbar(
-                          'Error',
-                          'Failed to add song',
-                          snackPosition: SnackPosition.BOTTOM,
-                          backgroundColor: AppColors.accent,
-                          duration: const Duration(seconds: 2),
-                        );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Failed to add song'),
+                              backgroundColor: AppColors.accent,
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        }
                       }
                     },
                   );

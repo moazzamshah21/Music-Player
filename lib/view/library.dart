@@ -1,185 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:provider/provider.dart';
 import 'package:umarplayer/theme/app_colors.dart';
-import 'package:umarplayer/models/media_item.dart';
 import 'package:umarplayer/models/playlist.dart';
-import 'package:umarplayer/services/liked_songs_service.dart';
-import 'package:umarplayer/services/playlists_service.dart';
-import 'package:umarplayer/controllers/player_controller.dart';
+import 'package:umarplayer/providers/player_provider.dart';
+import 'package:umarplayer/providers/library_provider.dart';
+import 'package:umarplayer/providers/downloads_provider.dart';
 import 'package:umarplayer/widgets/mini_player.dart';
 import 'package:umarplayer/view/player_screen.dart';
 import 'package:umarplayer/view/playlist_detail_screen.dart';
 import 'package:umarplayer/view/liked_songs_screen.dart';
 import 'package:umarplayer/view/downloads_screen.dart';
-import 'package:umarplayer/controllers/downloads_controller.dart';
 
-class Library extends StatefulWidget {
+class Library extends StatelessWidget {
   const Library({super.key});
-
-  @override
-  State<Library> createState() => _LibraryState();
-}
-
-class _LibraryState extends State<Library> {
-  final PlayerController _playerController = Get.find<PlayerController>();
-  final DownloadsController _downloadsController = Get.find<DownloadsController>();
-  
-  List<MediaItem> _likedSongs = [];
-  List<Playlist> _playlists = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadData();
-  }
-
-  Future<void> _loadData() async {
-    setState(() {
-      _isLoading = true;
-    });
-    
-    final likedSongs = await LikedSongsService.getLikedSongs();
-    final playlists = await PlaylistsService.getPlaylists();
-    await _downloadsController.loadDownloadedSongs();
-    
-    setState(() {
-      _likedSongs = likedSongs;
-      _playlists = playlists;
-      _isLoading = false;
-    });
-  }
-
-  Future<void> _createPlaylist() async {
-    final TextEditingController nameController = TextEditingController();
-    
-    final result = await Get.dialog<bool>(
-      AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text(
-          'Create playlist',
-          style: TextStyle(color: AppColors.textPrimary),
-        ),
-        content: TextField(
-          controller: nameController,
-          autofocus: true,
-          style: const TextStyle(color: AppColors.textPrimary),
-          decoration: const InputDecoration(
-            hintText: 'Playlist name',
-            hintStyle: TextStyle(color: AppColors.textSecondary),
-            enabledBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: AppColors.border),
-            ),
-            focusedBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: AppColors.textPrimary),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(result: false),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              if (nameController.text.trim().isNotEmpty) {
-                Get.back(result: true);
-              }
-            },
-            child: const Text(
-              'Create',
-              style: TextStyle(color: AppColors.textPrimary),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (result == true && nameController.text.trim().isNotEmpty) {
-      try {
-        await PlaylistsService.createPlaylist(nameController.text.trim());
-        await _loadData();
-        Get.snackbar(
-          'Created',
-          'Playlist created',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: AppColors.surface,
-          duration: const Duration(seconds: 1),
-        );
-      } catch (e) {
-        Get.snackbar(
-          'Error',
-          'Failed to create playlist',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: AppColors.accent,
-          duration: const Duration(seconds: 2),
-        );
-      }
-    }
-  }
-
-  Future<void> _deletePlaylist(Playlist playlist) async {
-    final result = await Get.dialog<bool>(
-      AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text(
-          'Delete playlist',
-          style: TextStyle(color: AppColors.textPrimary),
-        ),
-        content: Text(
-          'Are you sure you want to delete "${playlist.name}"?',
-          style: const TextStyle(color: AppColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(result: false),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Get.back(result: true),
-            child: const Text(
-              'Delete',
-              style: TextStyle(color: Colors.red),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (result == true) {
-      try {
-        await PlaylistsService.deletePlaylist(playlist.id);
-        await _loadData();
-        Get.snackbar(
-          'Deleted',
-          'Playlist deleted',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: AppColors.surface,
-          duration: const Duration(seconds: 1),
-        );
-      } catch (e) {
-        Get.snackbar(
-          'Error',
-          'Failed to delete playlist',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: AppColors.accent,
-          duration: const Duration(seconds: 2),
-        );
-      }
-    }
-  }
-
-  void _openPlayerScreen() {
-    if (_playerController.currentItem.value != null) {
-      Get.to(() => const PlayerScreen());
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -206,67 +39,82 @@ class _LibraryState extends State<Library> {
             ),
             // Content
             Expanded(
-              child: RefreshIndicator(
-                onRefresh: _loadData,
-                color: AppColors.textPrimary,
-                child: _isLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          color: AppColors.textPrimary,
-                        ),
-                      )
-                    : _buildContent(),
+              child: Consumer<LibraryProvider>(
+                builder: (context, libraryProvider, _) {
+                  return RefreshIndicator(
+                    onRefresh: () => libraryProvider.loadData(),
+                    color: AppColors.textPrimary,
+                    child: libraryProvider.isLoading
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                              color: AppColors.textPrimary,
+                            ),
+                          )
+                        : _buildContent(context, libraryProvider),
+                  );
+                },
               ),
             ),
           ],
         ),
         // Mini Player - positioned above bottom nav
-        Obx(() => _playerController.currentItem.value != null
-            ? Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: MiniPlayer(
-                  currentItem: _playerController.currentItem.value,
-                  isPlaying: _playerController.isPlaying.value,
-                  isLiked: _playerController.isLiked.value,
-                  onPlayPause: () => _playerController.playPause(),
-                  onTap: _openPlayerScreen,
-                  onFavorite: () => _playerController.toggleFavorite(),
-                ),
-              )
-            : const SizedBox.shrink()),
+        Consumer<PlayerProvider>(
+          builder: (context, playerProvider, _) {
+            return playerProvider.currentItem != null
+                ? Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: MiniPlayer(
+                      currentItem: playerProvider.currentItem,
+                      isPlaying: playerProvider.isPlaying,
+                      isLiked: playerProvider.isLiked,
+                      onPlayPause: () => playerProvider.playPause(),
+                      onTap: () {
+                        if (playerProvider.currentItem != null) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const PlayerScreen()),
+                          );
+                        }
+                      },
+                      onFavorite: () => playerProvider.toggleFavorite(),
+                    ),
+                  )
+                : const SizedBox.shrink();
+          },
+        ),
       ],
     );
   }
 
-  Widget _buildContent() {
+  Widget _buildContent(BuildContext context, LibraryProvider libraryProvider) {
+    final downloadsProvider = Provider.of<DownloadsProvider>(context, listen: false);
+    
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 16),
       children: [
         const SizedBox(height: 8),
         // Create playlist
-        _buildCreatePlaylistItem(),
+        _buildCreatePlaylistItem(context, libraryProvider),
         const SizedBox(height: 16),
         // Liked Songs
-        _buildLikedSongsItem(),
+        _buildLikedSongsItem(context, libraryProvider),
         const SizedBox(height: 16),
         // Your Downloads
-        _buildDownloadsItem(),
+        _buildDownloadsItem(context, downloadsProvider),
         const SizedBox(height: 24),
         // Playlists
-        if (_playlists.isNotEmpty) ...[
-          ..._playlists.map((playlist) => _buildPlaylistItem(playlist)),
-        ],
+        ...libraryProvider.playlists.map((playlist) => _buildPlaylistItem(context, playlist, libraryProvider)),
         const SizedBox(height: 140), // Space for mini player + bottom nav
       ],
     );
   }
 
-  Widget _buildCreatePlaylistItem() {
+  Widget _buildCreatePlaylistItem(BuildContext context, LibraryProvider controller) {
     return InkWell(
-      onTap: _createPlaylist,
+      onTap: () => _createPlaylist(context, controller),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(
@@ -299,10 +147,13 @@ class _LibraryState extends State<Library> {
     );
   }
 
-  Widget _buildLikedSongsItem() {
+  Widget _buildLikedSongsItem(BuildContext context, LibraryProvider controller) {
     return InkWell(
       onTap: () {
-        Get.to(() => const LikedSongsScreen());
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const LikedSongsScreen()),
+        );
       },
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
@@ -346,12 +197,16 @@ class _LibraryState extends State<Library> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    '${_likedSongs.length} ${_likedSongs.length == 1 ? 'song' : 'songs'}',
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 14,
-                    ),
+                  Consumer<LibraryProvider>(
+                    builder: (context, libraryProvider, _) {
+                      return Text(
+                        '${libraryProvider.likedSongs.length} ${libraryProvider.likedSongs.length == 1 ? 'song' : 'songs'}',
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 14,
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -362,81 +217,91 @@ class _LibraryState extends State<Library> {
     );
   }
 
-  Widget _buildDownloadsItem() {
-    return Obx(() {
-      final downloadedCount = _downloadsController.downloadedSongs.length;
-      final downloadingCount = _downloadsController.isDownloading.values
-          .where((isDownloading) => isDownloading == true)
-          .length;
-      
-      return InkWell(
-        onTap: () {
-          Get.to(() => const DownloadsScreen());
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Row(
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xFF1DB954),
-                      Color(0xFF1ED760),
+  Widget _buildDownloadsItem(BuildContext context, DownloadsProvider downloadsController) {
+    return Consumer<DownloadsProvider>(
+      builder: (context, downloadsProvider, _) {
+        final downloadedCount = downloadsProvider.downloadedSongs.length;
+        final downloadingCount = downloadsProvider.isDownloading.values
+            .where((isDownloading) => isDownloading == true)
+            .length;
+        
+        return InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const DownloadsScreen()),
+            );
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Color(0xFF1DB954),
+                        Color(0xFF1ED760),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Icon(
+                    Icons.download,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Your Downloads',
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        downloadingCount > 0
+                            ? '$downloadedCount ${downloadedCount == 1 ? 'song' : 'songs'} • $downloadingCount downloading'
+                            : '$downloadedCount ${downloadedCount == 1 ? 'song' : 'songs'}',
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 14,
+                        ),
+                      ),
                     ],
                   ),
-                  borderRadius: BorderRadius.circular(4),
                 ),
-                child: const Icon(
-                  Icons.download,
-                  color: Colors.white,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Your Downloads',
-                      style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      downloadingCount > 0
-                          ? '$downloadedCount ${downloadedCount == 1 ? 'song' : 'songs'} • $downloadingCount downloading'
-                          : '$downloadedCount ${downloadedCount == 1 ? 'song' : 'songs'}',
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
   }
 
-  Widget _buildPlaylistItem(Playlist playlist) {
+  Widget _buildPlaylistItem(BuildContext context, Playlist playlist, LibraryProvider controller) {
     return InkWell(
       onTap: () {
-        Get.to(() => PlaylistDetailScreen(playlistId: playlist.id));
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PlaylistDetailScreen(playlistId: playlist.id),
+          ),
+        );
       },
       onLongPress: () {
-        _showPlaylistOptions(playlist);
+        _showPlaylistOptions(context, playlist, controller);
       },
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
@@ -506,14 +371,90 @@ class _LibraryState extends State<Library> {
     );
   }
 
-  void _showPlaylistOptions(Playlist playlist) {
-    Get.bottomSheet(
-      Container(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+  Future<void> _createPlaylist(BuildContext context, LibraryProvider controller) async {
+    final TextEditingController nameController = TextEditingController();
+    
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text(
+          'Create playlist',
+          style: TextStyle(color: AppColors.textPrimary),
         ),
+        content: TextField(
+          controller: nameController,
+          autofocus: true,
+          style: const TextStyle(color: AppColors.textPrimary),
+          decoration: const InputDecoration(
+            hintText: 'Playlist name',
+            hintStyle: TextStyle(color: AppColors.textSecondary),
+            enabledBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: AppColors.border),
+            ),
+            focusedBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: AppColors.textPrimary),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              if (nameController.text.trim().isNotEmpty) {
+                Navigator.pop(context, true);
+              }
+            },
+            child: const Text(
+              'Create',
+              style: TextStyle(color: AppColors.textPrimary),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true && nameController.text.trim().isNotEmpty) {
+      try {
+        await controller.createPlaylist(nameController.text.trim());
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Playlist created'),
+              backgroundColor: AppColors.surface,
+              duration: Duration(seconds: 1),
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to create playlist'),
+              backgroundColor: AppColors.accent,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  void _showPlaylistOptions(BuildContext context, Playlist playlist, LibraryProvider controller) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -527,13 +468,71 @@ class _LibraryState extends State<Library> {
                 style: TextStyle(color: Colors.red),
               ),
               onTap: () {
-                Get.back();
-                _deletePlaylist(playlist);
+                Navigator.pop(context);
+                _deletePlaylist(context, playlist, controller);
               },
             ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _deletePlaylist(BuildContext context, Playlist playlist, LibraryProvider controller) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text(
+          'Delete playlist',
+          style: TextStyle(color: AppColors.textPrimary),
+        ),
+        content: Text(
+          'Are you sure you want to delete "${playlist.name}"?',
+          style: const TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true) {
+      try {
+        await controller.deletePlaylist(playlist.id);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Playlist deleted'),
+              backgroundColor: AppColors.surface,
+              duration: Duration(seconds: 1),
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to delete playlist'),
+              backgroundColor: AppColors.accent,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    }
   }
 }

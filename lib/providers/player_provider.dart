@@ -1,0 +1,392 @@
+import 'dart:async';
+import 'dart:math';
+import 'package:flutter/foundation.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:umarplayer/models/media_item.dart';
+import 'package:umarplayer/services/player_service.dart';
+import 'package:umarplayer/services/audio_service_manager.dart';
+import 'package:umarplayer/services/liked_songs_service.dart';
+import 'package:umarplayer/providers/home_provider.dart';
+
+class PlayerProvider extends ChangeNotifier {
+  final PlayerService playerService = PlayerService();
+  AudioServiceManager? audioServiceManager;
+  HomeProvider? homeProvider;
+
+  MediaItem? _currentItem;
+  bool _isPlaying = false;
+  bool _isLoading = false;
+  String _loadingMessage = '';
+  Duration _position = Duration.zero;
+  Duration _duration = Duration.zero;
+  bool _isLiked = false;
+  
+  // Queue management
+  List<MediaItem> _queue = [];
+  int _currentIndex = -1;
+  List<MediaItem> _originalQueue = []; // For shuffle
+  
+  // Stream subscriptions
+  StreamSubscription<Duration>? _positionSubscription;
+  StreamSubscription<Duration?>? _durationSubscription;
+  StreamSubscription<PlayerState>? _playerStateSubscription;
+
+  // Getters
+  MediaItem? get currentItem => _currentItem;
+  bool get isPlaying => _isPlaying;
+  bool get isLoading => _isLoading;
+  String get loadingMessage => _loadingMessage;
+  Duration get position => _position;
+  Duration get duration => _duration;
+  bool get isLiked => _isLiked;
+  List<MediaItem> get queue => List.unmodifiable(_queue);
+  int get currentIndex => _currentIndex;
+  bool get isShuffleEnabled => playerService.isShuffleEnabled;
+  bool get isRepeatEnabled => playerService.isRepeatEnabled;
+
+  void initialize(AudioServiceManager audioServiceManager, HomeProvider homeProvider) {
+    this.audioServiceManager = audioServiceManager;
+    this.homeProvider = homeProvider;
+    _setupListeners();
+  }
+
+  void _setupListeners() {
+    // Position updates
+    _positionSubscription = playerService.audioPlayer.positionStream.listen((pos) {
+      _position = pos;
+      notifyListeners();
+    });
+
+    // Duration updates
+    _durationSubscription = playerService.audioPlayer.durationStream.listen((dur) {
+      _duration = dur ?? Duration.zero;
+      notifyListeners();
+    });
+
+    // Player state updates - source of truth
+    // This listener is the ONLY place that should update _isPlaying
+    // Always update to match actual player state (no conditions) to prevent desync
+    _playerStateSubscription = playerService.audioPlayer.playerStateStream.listen((state) {
+      final actualPlayingState = state.playing;
+      // Always update to match actual player state
+      _isPlaying = actualPlayingState;
+      notifyListeners();
+      
+      // Auto-play next song when current song ends
+      if (state.processingState == ProcessingState.completed && 
+          !state.playing &&
+          !isRepeatEnabled) {
+        playNext();
+      }
+    });
+  }
+
+  Future<void> playMediaItem(MediaItem item, {List<MediaItem>? queue}) async {
+    try {
+      // CRITICAL: Stop any currently playing song COMPLETELY before updating UI
+      // This prevents the old song from continuing to play while showing new song
+      if (playerService.audioPlayer.processingState != ProcessingState.idle) {
+        print('Stopping current song before playing new one...');
+        // Pause first to stop playback immediately
+        await playerService.audioPlayer.pause();
+        // Then stop to reset the player
+        await playerService.audioPlayer.stop();
+        // Wait for player to fully reach idle state
+        int waitAttempts = 0;
+        while (playerService.audioPlayer.processingState != ProcessingState.idle && waitAttempts < 20) {
+          await Future.delayed(const Duration(milliseconds: 50));
+          waitAttempts++;
+        }
+        // Additional small delay to ensure audio stops
+        await Future.delayed(const Duration(milliseconds: 100));
+        print('Current song fully stopped');
+      }
+      
+      // NOW update UI - old song is completely stopped
+      _isLoading = true;
+      _loadingMessage = 'Loading...';
+      _currentItem = item; // Update UI only after old song is stopped
+      notifyListeners();
+      
+      // Set queue if provided
+      if (queue != null && queue.isNotEmpty) {
+        _originalQueue = List.from(queue);
+        _queue = isShuffleEnabled ? _shuffleList(List.from(queue)) : List.from(queue);
+        _currentIndex = _queue.indexWhere((s) => s.id == item.id);
+        if (_currentIndex == -1) {
+          _currentIndex = 0;
+        }
+      } else {
+        // Single item queue
+        _queue = [item];
+        _originalQueue = [item];
+        _currentIndex = 0;
+      }
+      
+      // Check if song is liked (non-blocking)
+      _updateLikedStatus(item.id);
+      
+      // Initialize AudioService and start playback in parallel
+      final initFuture = audioServiceManager?.ensureInitialized() ?? Future.value();
+      
+      // Start fetching stream immediately
+      _loadingMessage = 'Getting audio stream...';
+      notifyListeners();
+      final playFuture = playerService.playMediaItem(item);
+      
+      // Wait for both to complete
+      await Future.wait([initFuture, playFuture]);
+      
+      // Update audio handler for notification
+      final audioHandler = audioServiceManager?.audioHandler;
+      if (audioHandler != null) {
+        await audioHandler.playMediaItemFromApp(item, queue: _queue);
+      }
+      
+      _isLoading = false;
+      _loadingMessage = '';
+      notifyListeners();
+      
+      // Add to recently played in background
+      homeProvider?.addToRecentlyPlayed(item);
+    } catch (e) {
+      _isLoading = false;
+      _loadingMessage = '';
+      notifyListeners();
+      print('Error playing media: $e');
+      rethrow;
+    }
+  }
+  
+  List<MediaItem> _shuffleList(List<MediaItem> list) {
+    final shuffled = List<MediaItem>.from(list);
+    shuffled.shuffle(Random());
+    return shuffled;
+  }
+  
+  Future<void> _playNext() async {
+    if (_queue.isEmpty || _currentIndex == -1) return;
+    
+    int nextIndex;
+    if (isShuffleEnabled) {
+      if (_originalQueue.isEmpty) return;
+      final random = Random();
+      nextIndex = random.nextInt(_originalQueue.length);
+      final nextItem = _originalQueue[nextIndex];
+      final indexInShuffled = _queue.indexWhere((s) => s.id == nextItem.id);
+      if (indexInShuffled != -1) {
+        _currentIndex = indexInShuffled;
+      } else {
+        _queue.add(nextItem);
+        _currentIndex = _queue.length - 1;
+      }
+    } else {
+      nextIndex = (_currentIndex + 1) % _queue.length;
+      _currentIndex = nextIndex;
+    }
+    
+    if (_currentIndex < _queue.length) {
+      await _playItemFromQueue(_queue[_currentIndex]);
+    }
+  }
+  
+  Future<void> _playPrevious() async {
+    if (_queue.isEmpty || _currentIndex == -1) return;
+    
+    int prevIndex;
+    if (isShuffleEnabled) {
+      if (_originalQueue.isEmpty) return;
+      final random = Random();
+      prevIndex = random.nextInt(_originalQueue.length);
+      final prevItem = _originalQueue[prevIndex];
+      final indexInShuffled = _queue.indexWhere((s) => s.id == prevItem.id);
+      if (indexInShuffled != -1) {
+        _currentIndex = indexInShuffled;
+      } else {
+        _queue.insert(0, prevItem);
+        _currentIndex = 0;
+      }
+    } else {
+      prevIndex = (_currentIndex - 1) % _queue.length;
+      if (prevIndex < 0) prevIndex = _queue.length - 1;
+      _currentIndex = prevIndex;
+    }
+    
+    if (_currentIndex >= 0 && _currentIndex < _queue.length) {
+      await _playItemFromQueue(_queue[_currentIndex]);
+    }
+  }
+  
+  Future<void> _playItemFromQueue(MediaItem item) async {
+    // CRITICAL: Stop current song completely before playing next/previous
+    // This ensures old song doesn't continue playing
+    if (playerService.audioPlayer.processingState != ProcessingState.idle) {
+      print('Stopping current song before playing next/previous...');
+      await playerService.audioPlayer.pause();
+      await Future.delayed(const Duration(milliseconds: 50));
+      await playerService.audioPlayer.stop();
+      // Wait for idle state
+      int waitAttempts = 0;
+      while (playerService.audioPlayer.processingState != ProcessingState.idle && waitAttempts < 20) {
+        await Future.delayed(const Duration(milliseconds: 50));
+        waitAttempts++;
+      }
+      await Future.delayed(const Duration(milliseconds: 150));
+      print('Current song stopped, switching to next/previous');
+    }
+    
+    await playMediaItem(item, queue: _queue);
+  }
+  
+  Future<void> playNext() async {
+    _playNext().catchError((e) {
+      print('Error playing next: $e');
+    });
+  }
+  
+  Future<void> playPrevious() async {
+    if (_position.inSeconds < 3) {
+      _playPrevious().catchError((e) {
+        print('Error playing previous: $e');
+      });
+    } else {
+      seek(Duration.zero);
+    }
+  }
+
+  Future<void> playPause() async {
+    if (_currentItem == null) return;
+    
+    // Get current actual state from player (source of truth)
+    // Use the actual player state, not our cached state
+    final currentState = playerService.audioPlayer.playerState;
+    final isCurrentlyPlaying = currentState.playing;
+    
+    try {
+      // Execute play/pause based on ACTUAL current state
+      if (isCurrentlyPlaying) {
+        // Currently playing, so pause it
+        print('Pausing playback...');
+        await playerService.audioPlayer.pause();
+        
+        // Sync audio handler AFTER pausing player
+        final audioHandler = audioServiceManager?.audioHandler;
+        if (audioHandler != null) {
+          await audioHandler.pause();
+        }
+      } else {
+        // Currently paused, so play it
+        print('Resuming playback...');
+        await playerService.audioPlayer.play();
+        
+        // Sync audio handler AFTER playing
+        final audioHandler = audioServiceManager?.audioHandler;
+        if (audioHandler != null) {
+          await audioHandler.play();
+        }
+      }
+      
+      // State will be updated automatically by the playerStateStream listener
+      // Don't manually update _isPlaying here to avoid race conditions
+    } catch (e) {
+      print('Error in playPause: $e');
+      // On error, sync state from actual player state
+      final actualState = playerService.audioPlayer.playerState;
+      if (_isPlaying != actualState.playing) {
+        _isPlaying = actualState.playing;
+        notifyListeners();
+      }
+    }
+  }
+
+  // Allow direct position updates for slider dragging (without triggering seek)
+  void updatePosition(Duration value) {
+    _position = value;
+    notifyListeners();
+  }
+
+  Future<void> seek(Duration position) async {
+    // Update position immediately for instant feedback
+    _position = position;
+    notifyListeners();
+    
+    // Execute seek in background
+    playerService.seek(position).catchError((e) {
+      print('Error seeking: $e');
+    });
+  }
+
+  void toggleShuffle() {
+    playerService.toggleShuffle();
+    
+    if (isShuffleEnabled && _originalQueue.isNotEmpty) {
+      _queue = _shuffleList(List.from(_originalQueue));
+      if (_currentItem != null) {
+        final newIndex = _queue.indexWhere((s) => s.id == _currentItem!.id);
+        if (newIndex != -1) {
+          _currentIndex = newIndex;
+        }
+      }
+    } else if (!isShuffleEnabled && _originalQueue.isNotEmpty) {
+      _queue = List.from(_originalQueue);
+      if (_currentItem != null) {
+        final newIndex = _queue.indexWhere((s) => s.id == _currentItem!.id);
+        if (newIndex != -1) {
+          _currentIndex = newIndex;
+        }
+      }
+    }
+    notifyListeners();
+  }
+
+  void toggleRepeat() {
+    playerService.toggleRepeat();
+    notifyListeners();
+  }
+
+  Future<void> _updateLikedStatus(String songId) async {
+    final liked = await LikedSongsService.isLiked(songId);
+    _isLiked = liked;
+    notifyListeners();
+  }
+
+  Future<void> toggleFavorite() async {
+    if (_currentItem == null) return;
+    
+    final wasLiked = _isLiked;
+    _isLiked = !wasLiked;
+    notifyListeners();
+    
+    LikedSongsService.toggleLike(_currentItem!).then((newLikedStatus) {
+      _isLiked = newLikedStatus;
+      notifyListeners();
+    }).catchError((e) {
+      _isLiked = wasLiked;
+      notifyListeners();
+      print('Error toggling favorite: $e');
+    });
+  }
+
+  Future<void> refreshLikedStatus() async {
+    if (_currentItem == null) return;
+    
+    try {
+      final isLiked = await LikedSongsService.isLiked(_currentItem!.id);
+      if (_isLiked != isLiked) {
+        _isLiked = isLiked;
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error refreshing liked status: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    _positionSubscription?.cancel();
+    _durationSubscription?.cancel();
+    _playerStateSubscription?.cancel();
+    playerService.dispose();
+    super.dispose();
+  }
+}

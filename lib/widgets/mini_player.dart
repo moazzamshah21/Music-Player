@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:umarplayer/models/media_item.dart';
 import 'package:umarplayer/theme/app_colors.dart';
 
@@ -50,12 +51,26 @@ class MiniPlayer extends StatelessWidget {
                 color: AppColors.surfaceVariant,
                 borderRadius: BorderRadius.circular(0),
               ),
-              child: currentItem!.imageUrl != null
+              child: currentItem!.imageUrl != null && currentItem!.imageUrl!.isNotEmpty
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(4),
-                      child: Image.network(
-                        currentItem!.imageUrl!,
+                      child: CachedNetworkImage(
+                        imageUrl: currentItem!.imageUrl!,
                         fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(
+                          color: AppColors.surfaceVariant,
+                          child: const Center(
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.textTertiary,
+                            ),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => Icon(
+                          Icons.music_note,
+                          color: AppColors.textTertiary,
+                          size: 24,
+                        ),
                       ),
                     )
                   : Icon(

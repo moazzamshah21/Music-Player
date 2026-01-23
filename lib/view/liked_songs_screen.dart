@@ -1,106 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:provider/provider.dart';
 import 'package:umarplayer/theme/app_colors.dart';
 import 'package:umarplayer/models/media_item.dart';
-import 'package:umarplayer/services/liked_songs_service.dart';
-import 'package:umarplayer/controllers/player_controller.dart';
+import 'package:umarplayer/providers/player_provider.dart';
+import 'package:umarplayer/providers/liked_songs_provider.dart';
 import 'package:umarplayer/widgets/mini_player.dart';
 import 'package:umarplayer/view/player_screen.dart';
 
-class LikedSongsScreen extends StatefulWidget {
+class LikedSongsScreen extends StatelessWidget {
   const LikedSongsScreen({super.key});
-
-  @override
-  State<LikedSongsScreen> createState() => _LikedSongsScreenState();
-}
-
-class _LikedSongsScreenState extends State<LikedSongsScreen> {
-  final PlayerController _playerController = Get.find<PlayerController>();
-  
-  List<MediaItem> _likedSongs = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadLikedSongs();
-    // Listen to liked status changes to refresh the list
-    _playerController.isLiked.listen((isLiked) {
-      _loadLikedSongs();
-    });
-  }
-
-  Future<void> _loadLikedSongs() async {
-    setState(() {
-      _isLoading = true;
-    });
-    
-    final songs = await LikedSongsService.getLikedSongs();
-    setState(() {
-      _likedSongs = songs;
-      _isLoading = false;
-    });
-  }
-
-  Future<void> _playMediaItem(MediaItem item) async {
-    try {
-      // Pass the liked songs as queue when playing from liked songs
-      if (_likedSongs.isNotEmpty) {
-        await _playerController.playMediaItem(item, queue: _likedSongs);
-      } else {
-        await _playerController.playMediaItem(item);
-      }
-      
-      Get.snackbar(
-        'Playing',
-        item.title,
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: AppColors.surface,
-        duration: const Duration(seconds: 1),
-      );
-    } catch (e) {
-      String errorMessage = 'Error playing song';
-      if (e.toString().contains('MissingPluginException')) {
-        errorMessage = 'Audio plugin not initialized. Please restart the app.';
-      } else if (e.toString().contains('stream URL') || e.toString().contains('audio stream')) {
-        errorMessage = 'Could not get audio stream. Please try another song.';
-      } else {
-        errorMessage = 'Error: ${e.toString()}';
-      }
-      
-      Get.snackbar(
-        'Error',
-        errorMessage,
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: AppColors.accent,
-        duration: const Duration(seconds: 3),
-      );
-    }
-  }
-
-  Future<void> _removeLikedSong(MediaItem item) async {
-    await LikedSongsService.removeLikedSong(item.id);
-    await _loadLikedSongs();
-    
-    // Update player controller's liked status if this is the current song
-    if (_playerController.currentItem.value?.id == item.id) {
-      _playerController.isLiked.value = false;
-    }
-    
-    Get.snackbar(
-      'Removed',
-      'Removed from your library',
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: AppColors.surface,
-      duration: const Duration(seconds: 1),
-    );
-  }
-
-  void _openPlayerScreen() {
-    if (_playerController.currentItem.value != null) {
-      Get.to(() => const PlayerScreen());
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -114,7 +22,7 @@ class _LikedSongsScreenState extends State<LikedSongsScreen> {
             Icons.arrow_back,
             color: AppColors.textPrimary,
           ),
-          onPressed: () => Get.back(),
+          onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           'Liked Songs',
@@ -128,31 +36,46 @@ class _LikedSongsScreenState extends State<LikedSongsScreen> {
       body: Stack(
         children: [
           // Main Content
-          _isLoading
-              ? const Center(
-                  child: CircularProgressIndicator(
-                    color: AppColors.textPrimary,
-                  ),
-                )
-              : _likedSongs.isEmpty
-                  ? _buildEmptyState()
-                  : _buildLikedSongsList(),
+          Consumer<LikedSongsProvider>(
+            builder: (context, likedSongsProvider, _) {
+              return likedSongsProvider.isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.textPrimary,
+                      ),
+                    )
+                  : likedSongsProvider.likedSongs.isEmpty
+                      ? _buildEmptyState()
+                      : _buildLikedSongsList(context, likedSongsProvider);
+            },
+          ),
           // Mini Player - positioned above bottom nav
-          Obx(() => _playerController.currentItem.value != null
-              ? Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: MiniPlayer(
-                    currentItem: _playerController.currentItem.value,
-                    isPlaying: _playerController.isPlaying.value,
-                    isLiked: _playerController.isLiked.value,
-                    onPlayPause: () => _playerController.playPause(),
-                    onTap: _openPlayerScreen,
-                    onFavorite: () => _playerController.toggleFavorite(),
-                  ),
-                )
-              : const SizedBox.shrink()),
+          Consumer<PlayerProvider>(
+            builder: (context, playerProvider, _) {
+              return playerProvider.currentItem != null
+                  ? Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: MiniPlayer(
+                        currentItem: playerProvider.currentItem,
+                        isPlaying: playerProvider.isPlaying,
+                        isLiked: playerProvider.isLiked,
+                        onPlayPause: () => playerProvider.playPause(),
+                        onTap: () {
+                          if (playerProvider.currentItem != null) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const PlayerScreen()),
+                            );
+                          }
+                        },
+                        onFavorite: () => playerProvider.toggleFavorite(),
+                      ),
+                    )
+                  : const SizedBox.shrink();
+            },
+          ),
         ],
       ),
     );
@@ -191,20 +114,22 @@ class _LikedSongsScreenState extends State<LikedSongsScreen> {
     );
   }
 
-  Widget _buildLikedSongsList() {
+  Widget _buildLikedSongsList(BuildContext context, LikedSongsProvider likedSongsProvider) {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: _likedSongs.length,
+      itemCount: likedSongsProvider.likedSongs.length,
       itemBuilder: (context, index) {
-        final song = _likedSongs[index];
-        return _buildSongItem(song, index + 1);
+        final song = likedSongsProvider.likedSongs[index];
+        return _buildSongItem(context, song, index + 1, likedSongsProvider);
       },
     );
   }
 
-  Widget _buildSongItem(MediaItem song, int index) {
+  Widget _buildSongItem(BuildContext context, MediaItem song, int index, LikedSongsProvider likedSongsProvider) {
+    final playerProvider = Provider.of<PlayerProvider>(context, listen: false);
+    
     return InkWell(
-      onTap: () => _playMediaItem(song),
+      onTap: () => _playMediaItem(context, song, likedSongsProvider, playerProvider),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(
@@ -287,11 +212,50 @@ class _LikedSongsScreenState extends State<LikedSongsScreen> {
                 color: Colors.red,
                 size: 24,
               ),
-              onPressed: () => _removeLikedSong(song),
+              onPressed: () => likedSongsProvider.removeLikedSong(song),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _playMediaItem(BuildContext context, MediaItem item, LikedSongsProvider likedSongsProvider, PlayerProvider playerProvider) async {
+    try {
+      if (likedSongsProvider.likedSongs.isNotEmpty) {
+        await playerProvider.playMediaItem(item, queue: likedSongsProvider.likedSongs);
+      } else {
+        await playerProvider.playMediaItem(item);
+      }
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Playing ${item.title}'),
+            backgroundColor: AppColors.surface,
+            duration: const Duration(seconds: 1),
+          ),
+        );
+      }
+    } catch (e) {
+      String errorMessage = 'Error playing song';
+      if (e.toString().contains('MissingPluginException')) {
+        errorMessage = 'Audio plugin not initialized. Please restart the app.';
+      } else if (e.toString().contains('stream URL') || e.toString().contains('audio stream')) {
+        errorMessage = 'Could not get audio stream. Please try another song.';
+      } else {
+        errorMessage = 'Error: ${e.toString()}';
+      }
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: AppColors.accent,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 }

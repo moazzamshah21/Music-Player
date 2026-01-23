@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:provider/provider.dart';
 import 'package:umarplayer/theme/app_colors.dart';
 import 'package:umarplayer/models/media_item.dart';
 import 'package:umarplayer/models/playlist.dart';
 import 'package:umarplayer/services/playlists_service.dart';
-import 'package:umarplayer/controllers/player_controller.dart';
+import 'package:umarplayer/providers/player_provider.dart';
+import 'package:umarplayer/providers/playlist_detail_provider.dart';
 import 'package:umarplayer/widgets/mini_player.dart';
 import 'package:umarplayer/view/player_screen.dart';
 import 'package:umarplayer/widgets/add_to_playlist_dialog.dart';
 
-class PlaylistDetailScreen extends StatefulWidget {
+class PlaylistDetailScreen extends StatelessWidget {
   final String playlistId;
 
   const PlaylistDetailScreen({
@@ -18,49 +19,38 @@ class PlaylistDetailScreen extends StatefulWidget {
   });
 
   @override
-  State<PlaylistDetailScreen> createState() => _PlaylistDetailScreenState();
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => PlaylistDetailProvider(playlistId),
+      child: _PlaylistDetailContent(playlistId: playlistId),
+    );
+  }
 }
 
-class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
-  final PlayerController _playerController = Get.find<PlayerController>();
-  
-  Playlist? _playlist;
-  bool _isLoading = true;
+class _PlaylistDetailContent extends StatelessWidget {
+  final String playlistId;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadPlaylist();
-  }
+  const _PlaylistDetailContent({required this.playlistId});
 
-  Future<void> _loadPlaylist() async {
-    setState(() {
-      _isLoading = true;
-    });
+  Future<void> _playMediaItem(BuildContext context, MediaItem item, Playlist? playlist) async {
+    final playerProvider = Provider.of<PlayerProvider>(context, listen: false);
     
-    final playlist = await PlaylistsService.getPlaylistById(widget.playlistId);
-    setState(() {
-      _playlist = playlist;
-      _isLoading = false;
-    });
-  }
-
-  Future<void> _playMediaItem(MediaItem item) async {
     try {
-      // Pass the playlist songs as queue when playing from playlist
-      if (_playlist != null && _playlist!.songs.isNotEmpty) {
-        await _playerController.playMediaItem(item, queue: _playlist!.songs);
+      if (playlist != null && playlist.songs.isNotEmpty) {
+        await playerProvider.playMediaItem(item, queue: playlist.songs);
       } else {
-        await _playerController.playMediaItem(item);
+        await playerProvider.playMediaItem(item);
       }
       
-      Get.snackbar(
-        'Playing',
-        item.title,
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: AppColors.surface,
-        duration: const Duration(seconds: 1),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Playing ${item.title}'),
+            backgroundColor: AppColors.surface,
+            duration: const Duration(seconds: 1),
+          ),
+        );
+      }
     } catch (e) {
       String errorMessage = 'Error playing song';
       if (e.toString().contains('MissingPluginException')) {
@@ -71,173 +61,193 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
         errorMessage = 'Error: ${e.toString()}';
       }
       
-      Get.snackbar(
-        'Error',
-        errorMessage,
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: AppColors.accent,
-        duration: const Duration(seconds: 3),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: AppColors.accent,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
-  Future<void> _removeSongFromPlaylist(MediaItem song) async {
+  Future<void> _removeSongFromPlaylist(BuildContext context, MediaItem song, PlaylistDetailProvider provider) async {
     try {
-      await PlaylistsService.removeSongFromPlaylist(widget.playlistId, song.id);
-      await _loadPlaylist();
+      await provider.removeSongFromPlaylist(song);
       
-      Get.snackbar(
-        'Removed',
-        'Removed from playlist',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: AppColors.surface,
-        duration: const Duration(seconds: 1),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Removed from playlist'),
+            backgroundColor: AppColors.surface,
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to remove song',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: AppColors.accent,
-        duration: const Duration(seconds: 2),
-      );
-    }
-  }
-
-  void _openPlayerScreen() {
-    if (_playerController.currentItem.value != null) {
-      Get.to(() => const PlayerScreen());
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to remove song'),
+            backgroundColor: AppColors.accent,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(
-          backgroundColor: AppColors.background,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(
-              Icons.arrow_back,
-              color: AppColors.textPrimary,
+    return Consumer<PlaylistDetailProvider>(
+      builder: (context, provider, _) {
+        if (provider.isLoading) {
+          return Scaffold(
+            backgroundColor: AppColors.background,
+            appBar: AppBar(
+              backgroundColor: AppColors.background,
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(
+                  Icons.arrow_back,
+                  color: AppColors.textPrimary,
+                ),
+                onPressed: () => Navigator.pop(context),
+              ),
             ),
-            onPressed: () => Get.back(),
-          ),
-        ),
-        body: const Center(
-          child: CircularProgressIndicator(
-            color: AppColors.textPrimary,
-          ),
-        ),
-      );
-    }
+            body: const Center(
+              child: CircularProgressIndicator(
+                color: AppColors.textPrimary,
+              ),
+            ),
+          );
+        }
 
-    if (_playlist == null) {
-      return Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(
-          backgroundColor: AppColors.background,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(
-              Icons.arrow_back,
-              color: AppColors.textPrimary,
+        if (provider.playlist == null) {
+          return Scaffold(
+            backgroundColor: AppColors.background,
+            appBar: AppBar(
+              backgroundColor: AppColors.background,
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(
+                  Icons.arrow_back,
+                  color: AppColors.textPrimary,
+                ),
+                onPressed: () => Navigator.pop(context),
+              ),
             ),
-            onPressed: () => Get.back(),
-          ),
-        ),
-        body: const Center(
-          child: Text(
-            'Playlist not found',
-            style: TextStyle(color: AppColors.textPrimary),
-          ),
-        ),
-      );
-    }
+            body: const Center(
+              child: Text(
+                'Playlist not found',
+                style: TextStyle(color: AppColors.textPrimary),
+              ),
+            ),
+          );
+        }
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back,
-            color: AppColors.textPrimary,
-          ),
-          onPressed: () => Get.back(),
-        ),
-        title: Text(
-          _playlist!.name,
-          style: const TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(
-              Icons.add,
-              color: AppColors.textPrimary,
+        final playlist = provider.playlist!;
+
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          appBar: AppBar(
+            backgroundColor: AppColors.background,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: AppColors.textPrimary,
+              ),
+              onPressed: () => Navigator.pop(context),
             ),
-            onPressed: () async {
-              final song = await showDialog<MediaItem>(
-                context: context,
-                builder: (context) => const AddToPlaylistDialog(),
-              );
-              
-              if (song != null) {
-                try {
-                  await PlaylistsService.addSongToPlaylist(widget.playlistId, song);
-                  await _loadPlaylist();
-                  Get.snackbar(
-                    'Added',
-                    'Song added to playlist',
-                    snackPosition: SnackPosition.BOTTOM,
-                    backgroundColor: AppColors.surface,
-                    duration: const Duration(seconds: 1),
+            title: Text(
+              playlist.name,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(
+                  Icons.add,
+                  color: AppColors.textPrimary,
+                ),
+                onPressed: () async {
+                  final song = await showDialog<MediaItem>(
+                    context: context,
+                    builder: (context) => const AddToPlaylistDialog(),
                   );
-                } catch (e) {
-                  Get.snackbar(
-                    'Error',
-                    'Failed to add song',
-                    snackPosition: SnackPosition.BOTTOM,
-                    backgroundColor: AppColors.accent,
-                    duration: const Duration(seconds: 2),
-                  );
-                }
-              }
-            },
+                  
+                  if (song != null && context.mounted) {
+                    try {
+                      await PlaylistsService.addSongToPlaylist(playlistId, song);
+                      await provider.loadPlaylist();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Song added to playlist'),
+                            backgroundColor: AppColors.surface,
+                            duration: Duration(seconds: 1),
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Failed to add song'),
+                            backgroundColor: AppColors.accent,
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      }
+                    }
+                  }
+                },
+              ),
+            ],
           ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          // Main Content
-          _playlist!.songs.isEmpty
-              ? _buildEmptyState()
-              : _buildSongsList(),
-          // Mini Player - positioned above bottom nav
-          Obx(() => _playerController.currentItem.value != null
-              ? Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: MiniPlayer(
-                    currentItem: _playerController.currentItem.value,
-                    isPlaying: _playerController.isPlaying.value,
-                    isLiked: _playerController.isLiked.value,
-                    onPlayPause: () => _playerController.playPause(),
-                    onTap: _openPlayerScreen,
-                    onFavorite: () => _playerController.toggleFavorite(),
-                  ),
-                )
-              : const SizedBox.shrink()),
-        ],
-      ),
+          body: Stack(
+            children: [
+              // Main Content
+              playlist.songs.isEmpty
+                  ? _buildEmptyState()
+                  : _buildSongsList(context, playlist, provider),
+              // Mini Player - positioned above bottom nav
+              Consumer<PlayerProvider>(
+                builder: (context, playerProvider, _) {
+                  return playerProvider.currentItem != null
+                      ? Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          child: MiniPlayer(
+                            currentItem: playerProvider.currentItem,
+                            isPlaying: playerProvider.isPlaying,
+                            isLiked: playerProvider.isLiked,
+                            onPlayPause: () => playerProvider.playPause(),
+                            onTap: () {
+                              if (playerProvider.currentItem != null) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const PlayerScreen()),
+                                );
+                              }
+                            },
+                            onFavorite: () => playerProvider.toggleFavorite(),
+                          ),
+                        )
+                      : const SizedBox.shrink();
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -274,22 +284,22 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
     );
   }
 
-  Widget _buildSongsList() {
+  Widget _buildSongsList(BuildContext context, Playlist playlist, PlaylistDetailProvider provider) {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: _playlist!.songs.length,
+      itemCount: playlist.songs.length,
       itemBuilder: (context, index) {
-        final song = _playlist!.songs[index];
-        return _buildSongItem(song, index + 1);
+        final song = playlist.songs[index];
+        return _buildSongItem(context, song, index + 1, playlist, provider);
       },
     );
   }
 
-  Widget _buildSongItem(MediaItem song, int index) {
+  Widget _buildSongItem(BuildContext context, MediaItem song, int index, Playlist playlist, PlaylistDetailProvider provider) {
     return InkWell(
-      onTap: () => _playMediaItem(song),
+      onTap: () => _playMediaItem(context, song, playlist),
       onLongPress: () {
-        _removeSongFromPlaylist(song);
+        _removeSongFromPlaylist(context, song, provider);
       },
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
@@ -373,7 +383,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                 color: AppColors.textSecondary,
                 size: 20,
               ),
-              onPressed: () => _removeSongFromPlaylist(song),
+              onPressed: () => _removeSongFromPlaylist(context, song, provider),
             ),
           ],
         ),

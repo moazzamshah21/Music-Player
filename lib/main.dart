@@ -1,30 +1,91 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:provider/provider.dart';
 import 'package:umarplayer/navigation/main_navigation.dart';
 import 'package:umarplayer/theme/app_theme.dart';
-import 'package:umarplayer/controllers/home_controller.dart';
-import 'package:umarplayer/controllers/player_controller.dart';
-import 'package:umarplayer/controllers/downloads_controller.dart';
+import 'package:umarplayer/providers/home_provider.dart';
+import 'package:umarplayer/providers/player_provider.dart';
+import 'package:umarplayer/providers/downloads_provider.dart';
+import 'package:umarplayer/providers/library_provider.dart';
+import 'package:umarplayer/providers/search_provider.dart';
+import 'package:umarplayer/providers/liked_songs_provider.dart';
+import 'package:umarplayer/services/audio_service_manager.dart';
+import 'package:umarplayer/services/notification_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize notification service and request permissions
+  print('🚀 Starting app initialization...');
+  await NotificationService().initialize();
+  
+  // Run app with Provider
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // Initialize GetX controllers
-    Get.put(HomeController());
-    Get.put(PlayerController());
-    Get.put(DownloadsController());
+  State<MyApp> createState() => _MyAppState();
+}
 
-    return GetMaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Umar Player',
-      theme: AppTheme.darkTheme,
-      home: const MainNavigation(),
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  late AudioServiceManager audioServiceManager;
+  late HomeProvider homeProvider;
+  late PlayerProvider playerProvider;
+  late DownloadsProvider downloadsProvider;
+  late LibraryProvider libraryProvider;
+  late SearchProvider searchProvider;
+  late LikedSongsProvider likedSongsProvider;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    
+    // Initialize services and providers
+    audioServiceManager = AudioServiceManager();
+    homeProvider = HomeProvider();
+    playerProvider = PlayerProvider();
+    downloadsProvider = DownloadsProvider();
+    libraryProvider = LibraryProvider();
+    searchProvider = SearchProvider();
+    likedSongsProvider = LikedSongsProvider();
+    
+    // Initialize player provider with dependencies
+    playerProvider.initialize(audioServiceManager, homeProvider);
+    likedSongsProvider.setPlayerProvider(playerProvider);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // App lifecycle state changes handled here if needed
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiProvider(
+      providers: [
+        Provider.value(value: audioServiceManager),
+        ChangeNotifierProvider.value(value: homeProvider),
+        ChangeNotifierProvider.value(value: playerProvider),
+        ChangeNotifierProvider.value(value: downloadsProvider),
+        ChangeNotifierProvider.value(value: libraryProvider),
+        ChangeNotifierProvider.value(value: searchProvider),
+        ChangeNotifierProvider.value(value: likedSongsProvider),
+      ],
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'Umar Player',
+        theme: AppTheme.darkTheme,
+        home: const MainNavigation(),
+      ),
     );
   }
 }

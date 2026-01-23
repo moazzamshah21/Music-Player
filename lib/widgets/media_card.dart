@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:umarplayer/models/media_item.dart';
 import 'package:umarplayer/theme/app_colors.dart';
 
@@ -24,7 +25,7 @@ class MediaCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Album Art
+          // Album Art with caching
           Container(
             width: width,
             height: width,
@@ -32,12 +33,28 @@ class MediaCard extends StatelessWidget {
               color: AppColors.surfaceVariant,
               borderRadius: BorderRadius.circular(4),
             ),
-            child: item.imageUrl != null
+            child: item.imageUrl != null && item.imageUrl!.isNotEmpty
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(4),
-                    child: Image.network(
-                      item.imageUrl!,
+                    child: CachedNetworkImage(
+                      imageUrl: item.imageUrl!,
                       fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(
+                        color: AppColors.surfaceVariant,
+                        child: const Center(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.textTertiary,
+                          ),
+                        ),
+                      ),
+                      errorWidget: (context, url, error) => Icon(
+                        Icons.music_note,
+                        color: AppColors.textTertiary,
+                        size: 48,
+                      ),
+                      memCacheWidth: (width * MediaQuery.of(context).devicePixelRatio).round(),
+                      memCacheHeight: (width * MediaQuery.of(context).devicePixelRatio).round(),
                     ),
                   )
                 : Icon(

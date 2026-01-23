@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:umarplayer/theme/app_colors.dart';
-import 'package:umarplayer/controllers/player_controller.dart';
-import 'package:umarplayer/controllers/downloads_controller.dart';
+import 'package:umarplayer/providers/player_provider.dart';
+import 'package:umarplayer/providers/downloads_provider.dart';
 import 'package:umarplayer/services/downloads_service.dart';
 import 'package:umarplayer/services/playlists_service.dart';
 
@@ -18,336 +19,382 @@ class PlayerScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final PlayerController playerController = Get.find<PlayerController>();
-    final DownloadsController downloadsController = Get.find<DownloadsController>();
-
-    return Obx(() {
-      final currentItem = playerController.currentItem.value;
-      if (currentItem == null) {
-        return Scaffold(
-          backgroundColor: AppColors.background,
-          body: const Center(
-            child: Text(
-              'No song playing',
-              style: TextStyle(color: AppColors.textPrimary),
-            ),
-          ),
-        );
-      }
-
-      final position = playerController.position.value;
-      final duration = playerController.duration.value;
-      final progress = duration.inMilliseconds > 0
-          ? position.inMilliseconds / duration.inMilliseconds
-          : 0.0;
-
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Top bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    icon: const Icon(
-                      Icons.keyboard_arrow_down,
-                      color: AppColors.textPrimary,
-                      size: 32,
-                    ),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                  Column(
-                    children: [
-                      const Text(
-                        'PLAYING FROM ALBUM',
-                        style: TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        currentItem.album ?? 'Unknown Album',
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.more_vert,
-                      color: AppColors.textPrimary,
-                    ),
-                    onPressed: () => _showOptionsMenu(context, playerController, downloadsController),
-                  ),
-                ],
+    return Consumer<PlayerProvider>(
+      builder: (context, playerProvider, _) {
+        final currentItem = playerProvider.currentItem;
+        if (currentItem == null) {
+          return Scaffold(
+            backgroundColor: AppColors.background,
+            body: const Center(
+              child: Text(
+                'No song playing',
+                style: TextStyle(color: AppColors.textPrimary),
               ),
             ),
-            const SizedBox(height: 20),
-            // Album Art
-            Expanded(
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: AspectRatio(
-                    aspectRatio: 1,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.3),
-                            blurRadius: 20,
-                            spreadRadius: 5,
+          );
+        }
+
+        final position = playerProvider.position;
+        final duration = playerProvider.duration;
+        final progress = duration.inMilliseconds > 0
+            ? position.inMilliseconds / duration.inMilliseconds
+            : 0.0;
+
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          body: SafeArea(
+            child: Column(
+              children: [
+                // Top bar
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      IconButton(
+                        icon: const Icon(
+                          Icons.keyboard_arrow_down,
+                          color: AppColors.textPrimary,
+                          size: 32,
+                        ),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                      Column(
+                        children: [
+                          const Text(
+                            'PLAYING FROM ALBUM',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            currentItem.album ?? 'Unknown Album',
+                            style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ],
                       ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: currentItem.imageUrl != null
-                            ? Image.network(
-                                currentItem.imageUrl!,
-                                fit: BoxFit.cover,
-                              )
-                            : Container(
-                                color: AppColors.surfaceVariant,
-                                child: const Icon(
-                                  Icons.music_note,
-                                  color: AppColors.textTertiary,
-                                  size: 80,
-                                ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.more_vert,
+                          color: AppColors.textPrimary,
+                        ),
+                        onPressed: () => _showOptionsMenu(context),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // Album Art
+                Expanded(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: AspectRatio(
+                        aspectRatio: 1,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.3),
+                                blurRadius: 20,
+                                spreadRadius: 5,
                               ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: currentItem.imageUrl != null && currentItem.imageUrl!.isNotEmpty
+                                ? CachedNetworkImage(
+                                    imageUrl: currentItem.imageUrl!,
+                                    fit: BoxFit.cover,
+                                    placeholder: (context, url) => Container(
+                                      color: AppColors.surfaceVariant,
+                                      child: const Center(
+                                        child: CircularProgressIndicator(
+                                          color: AppColors.textTertiary,
+                                        ),
+                                      ),
+                                    ),
+                                    errorWidget: (context, url, error) => Container(
+                                      color: AppColors.surfaceVariant,
+                                      child: const Icon(
+                                        Icons.music_note,
+                                        color: AppColors.textTertiary,
+                                        size: 80,
+                                      ),
+                                    ),
+                                  )
+                                : Container(
+                                    color: AppColors.surfaceVariant,
+                                    child: const Icon(
+                                      Icons.music_note,
+                                      color: AppColors.textTertiary,
+                                      size: 80,
+                                    ),
+                                  ),
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 32),
-            // Song Info
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          currentItem.title,
-                          style: const TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                const SizedBox(height: 32),
+                // Song Info
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              currentItem.title,
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              currentItem.artist ?? 'Unknown Artist',
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 16,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          currentItem.artist ?? 'Unknown Artist',
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 16,
+                      ),
+                      Consumer<PlayerProvider>(
+                        builder: (context, playerProvider, _) {
+                          return IconButton(
+                            icon: Icon(
+                              playerProvider.isLiked
+                                  ? Icons.favorite
+                                  : Icons.favorite_outline,
+                              color: playerProvider.isLiked
+                                  ? Colors.red
+                                  : AppColors.textPrimary,
+                              size: 28,
+                            ),
+                            onPressed: () => playerProvider.toggleFavorite(),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
+                // Progress Bar
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    children: [
+                      SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          trackHeight: 4,
+                          thumbShape: const RoundSliderThumbShape(
+                            enabledThumbRadius: 6,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          overlayShape: const RoundSliderOverlayShape(
+                            overlayRadius: 12,
+                          ),
                         ),
-                      ],
-                    ),
-                  ),
-                  Obx(() => IconButton(
-                    icon: Icon(
-                      playerController.isLiked.value
-                          ? Icons.favorite
-                          : Icons.favorite_outline,
-                      color: playerController.isLiked.value
-                          ? Colors.red
-                          : AppColors.textPrimary,
-                      size: 28,
-                    ),
-                    onPressed: () => playerController.toggleFavorite(),
-                  )),
-                ],
-              ),
-            ),
-            const SizedBox(height: 32),
-            // Progress Bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                children: [
-                  SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      trackHeight: 4,
-                      thumbShape: const RoundSliderThumbShape(
-                        enabledThumbRadius: 6,
+                        child: Consumer<PlayerProvider>(
+                          builder: (context, playerProvider, _) {
+                            return Slider(
+                              value: progress.clamp(0.0, 1.0),
+                              onChangeStart: (value) {},
+                              onChanged: (value) {
+                                final newPosition = Duration(
+                                  milliseconds: (value * duration.inMilliseconds).toInt(),
+                                );
+                                // Update position directly for smooth slider feedback
+                                playerProvider.updatePosition(newPosition);
+                              },
+                              onChangeEnd: (value) {
+                                final newPosition = Duration(
+                                  milliseconds: (value * duration.inMilliseconds).toInt(),
+                                );
+                                playerProvider.seek(newPosition);
+                              },
+                              activeColor: AppColors.textPrimary,
+                              inactiveColor: AppColors.border,
+                            );
+                          },
+                        ),
                       ),
-                      overlayShape: const RoundSliderOverlayShape(
-                        overlayRadius: 12,
+                      Consumer<PlayerProvider>(
+                        builder: (context, playerProvider, _) {
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                _formatDuration(playerProvider.position),
+                                style: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              Text(
+                                _formatDuration(playerProvider.duration),
+                                style: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
-                    ),
-                    child: Slider(
-                      value: progress.clamp(0.0, 1.0),
-                      onChanged: (value) {
-                        final newPosition = Duration(
-                          milliseconds: (value * duration.inMilliseconds).toInt(),
-                        );
-                        playerController.seek(newPosition);
-                      },
-                      activeColor: AppColors.textPrimary,
-                      inactiveColor: AppColors.border,
-                    ),
+                    ],
                   ),
-                  Row(
+                ),
+                const SizedBox(height: 24),
+                // Playback Controls
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        _formatDuration(position),
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
-                        ),
-                      ),
-                      Text(
-                        _formatDuration(duration),
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            // Playback Controls
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Shuffle
-                  Column(
-                    children: [
-                      IconButton(
-                        icon: Icon(
-                          Icons.shuffle,
-                          color: playerController.isShuffleEnabled
-                              ? AppColors.accent
-                              : AppColors.textPrimary,
-                          size: 24,
-                        ),
-                        onPressed: () {
-                          playerController.toggleShuffle();
+                      // Shuffle
+                      Consumer<PlayerProvider>(
+                        builder: (context, playerProvider, _) {
+                          return Column(
+                            children: [
+                              IconButton(
+                                icon: Icon(
+                                  Icons.shuffle,
+                                  color: playerProvider.isShuffleEnabled
+                                      ? AppColors.accent
+                                      : AppColors.textPrimary,
+                                  size: 24,
+                                ),
+                                onPressed: () => playerProvider.toggleShuffle(),
+                              ),
+                              if (playerProvider.isShuffleEnabled)
+                                Container(
+                                  width: 4,
+                                  height: 4,
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.accent,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                            ],
+                          );
                         },
                       ),
-                      if (playerController.isShuffleEnabled)
-                        Container(
-                          width: 4,
-                          height: 4,
-                          decoration: const BoxDecoration(
-                            color: AppColors.accent,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                    ],
-                  ),
-                  // Previous
-                  IconButton(
-                    icon: const Icon(
-                      Icons.skip_previous,
-                      color: AppColors.textPrimary,
-                      size: 32,
-                    ),
-                    onPressed: () => playerController.playPrevious(),
-                  ),
-                  // Play/Pause
-                  Container(
-                    width: 64,
-                    height: 64,
-                    decoration: const BoxDecoration(
-                      color: AppColors.textPrimary,
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      icon: Icon(
-                        playerController.isPlaying.value
-                            ? Icons.pause
-                            : Icons.play_arrow,
-                        color: AppColors.background,
-                        size: 32,
-                      ),
-                      onPressed: () => playerController.playPause(),
-                    ),
-                  ),
-                  // Next
-                  IconButton(
-                    icon: const Icon(
-                      Icons.skip_next,
-                      color: AppColors.textPrimary,
-                      size: 32,
-                    ),
-                    onPressed: () => playerController.playNext(),
-                  ),
-                  // Repeat
-                  Column(
-                    children: [
+                      // Previous
                       IconButton(
-                        icon: Icon(
-                          Icons.repeat,
-                          color: playerController.isRepeatEnabled
-                              ? AppColors.accent
-                              : AppColors.textPrimary,
-                          size: 24,
+                        icon: const Icon(
+                          Icons.skip_previous,
+                          color: AppColors.textPrimary,
+                          size: 32,
                         ),
-                        onPressed: () {
-                          playerController.toggleRepeat();
+                        onPressed: () => playerProvider.playPrevious(),
+                      ),
+                      // Play/Pause
+                      Consumer<PlayerProvider>(
+                        builder: (context, playerProvider, _) {
+                          return Container(
+                            width: 64,
+                            height: 64,
+                            decoration: const BoxDecoration(
+                              color: AppColors.textPrimary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              icon: Icon(
+                                playerProvider.isPlaying
+                                    ? Icons.pause
+                                    : Icons.play_arrow,
+                                color: AppColors.background,
+                                size: 32,
+                              ),
+                              onPressed: () => playerProvider.playPause(),
+                            ),
+                          );
                         },
                       ),
-                      if (playerController.isRepeatEnabled)
-                        Container(
-                          width: 4,
-                          height: 4,
-                          decoration: const BoxDecoration(
-                            color: AppColors.accent,
-                            shape: BoxShape.circle,
-                          ),
+                      // Next
+                      IconButton(
+                        icon: const Icon(
+                          Icons.skip_next,
+                          color: AppColors.textPrimary,
+                          size: 32,
                         ),
+                        onPressed: () => playerProvider.playNext(),
+                      ),
+                      // Repeat
+                      Consumer<PlayerProvider>(
+                        builder: (context, playerProvider, _) {
+                          return Column(
+                            children: [
+                              IconButton(
+                                icon: Icon(
+                                  Icons.repeat,
+                                  color: playerProvider.isRepeatEnabled
+                                      ? AppColors.accent
+                                      : AppColors.textPrimary,
+                                  size: 24,
+                                ),
+                                onPressed: () => playerProvider.toggleRepeat(),
+                              ),
+                              if (playerProvider.isRepeatEnabled)
+                                Container(
+                                  width: 4,
+                                  height: 4,
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.accent,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                            ],
+                          );
+                        },
+                      ),
                     ],
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 32),
+              ],
             ),
-            const SizedBox(height: 32),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
-    });
   }
 
-  void _showOptionsMenu(BuildContext context, PlayerController playerController, DownloadsController downloadsController) {
-    final currentItem = playerController.currentItem.value;
+  void _showOptionsMenu(BuildContext context) {
+    final playerProvider = Provider.of<PlayerProvider>(context, listen: false);
+    final downloadsProvider = Provider.of<DownloadsProvider>(context, listen: false);
+    final currentItem = playerProvider.currentItem;
     if (currentItem == null) return;
 
-    Get.bottomSheet(
-      Container(
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => Container(
         padding: const EdgeInsets.symmetric(vertical: 8),
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -361,8 +408,8 @@ class PlayerScreen extends StatelessWidget {
                 style: TextStyle(color: AppColors.textPrimary),
               ),
               onTap: () {
-                Get.back();
-                _downloadSong(context, currentItem, downloadsController);
+                Navigator.pop(context);
+                _downloadSong(context, currentItem, downloadsProvider);
               },
             ),
             ListTile(
@@ -375,7 +422,7 @@ class PlayerScreen extends StatelessWidget {
                 style: TextStyle(color: AppColors.textPrimary),
               ),
               onTap: () {
-                Get.back();
+                Navigator.pop(context);
                 _showAddToPlaylistDialog(context, currentItem);
               },
             ),
@@ -385,69 +432,66 @@ class PlayerScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _downloadSong(BuildContext context, currentItem, DownloadsController downloadsController) async {
-    // Check if already downloaded
+  Future<void> _downloadSong(BuildContext context, currentItem, DownloadsProvider downloadsProvider) async {
     final isDownloaded = await DownloadsService.isDownloaded(currentItem.id);
     if (isDownloaded) {
-      Get.snackbar(
-        'Already Downloaded',
-        'This song is already downloaded',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: AppColors.surface,
-        duration: const Duration(seconds: 2),
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This song is already downloaded'),
+          backgroundColor: AppColors.surface,
+          duration: Duration(seconds: 2),
+        ),
       );
       return;
     }
 
-    // Check if already downloading
-    if (downloadsController.isSongDownloading(currentItem.id)) {
-      Get.snackbar(
-        'Already Downloading',
-        'This song is already being downloaded',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: AppColors.surface,
-        duration: const Duration(seconds: 2),
+    if (downloadsProvider.isSongDownloading(currentItem.id)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This song is already being downloaded'),
+          backgroundColor: AppColors.surface,
+          duration: Duration(seconds: 2),
+        ),
       );
       return;
     }
 
-    // Start background download
     try {
-      // Download in background - no dialog
-      downloadsController.downloadSong(currentItem).catchError((error) {
-        Get.snackbar(
-          'Download Failed',
-          'Could not download song. Check Downloads for details.',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: AppColors.accent,
-          duration: const Duration(seconds: 3),
+      downloadsProvider.downloadSong(currentItem).catchError((error) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not download song. Check Downloads for details.'),
+            backgroundColor: AppColors.accent,
+            duration: Duration(seconds: 3),
+          ),
         );
       });
       
-      Get.snackbar(
-        'Download Started',
-        'Downloading in background. Check Downloads for progress.',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: AppColors.surface,
-        duration: const Duration(seconds: 2),
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Downloading in background. Check Downloads for progress.'),
+          backgroundColor: AppColors.surface,
+          duration: Duration(seconds: 2),
+        ),
       );
     } catch (e) {
-      Get.snackbar(
-        'Download Failed',
-        'Could not start download: ${e.toString()}',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: AppColors.accent,
-        duration: const Duration(seconds: 3),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not start download: ${e.toString()}'),
+          backgroundColor: AppColors.accent,
+          duration: const Duration(seconds: 3),
+        ),
       );
     }
   }
 
-  Future<String?> _showCreatePlaylistDialog() async {
+  Future<String?> _showCreatePlaylistDialog(BuildContext context) async {
     final controller = TextEditingController();
     String? result;
     
-    await Get.dialog(
-      Dialog(
+    await showDialog(
+      context: context,
+      builder: (context) => Dialog(
         backgroundColor: AppColors.surface,
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -480,7 +524,7 @@ class PlayerScreen extends StatelessWidget {
                 onSubmitted: (value) {
                   if (value.trim().isNotEmpty) {
                     result = value.trim();
-                    Get.back();
+                    Navigator.pop(context);
                   }
                 },
               ),
@@ -489,7 +533,7 @@ class PlayerScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton(
-                    onPressed: () => Get.back(),
+                    onPressed: () => Navigator.pop(context),
                     child: const Text(
                       'Cancel',
                       style: TextStyle(color: AppColors.textSecondary),
@@ -501,7 +545,7 @@ class PlayerScreen extends StatelessWidget {
                       final value = controller.text.trim();
                       if (value.isNotEmpty) {
                         result = value;
-                        Get.back();
+                        Navigator.pop(context);
                       }
                     },
                     style: ElevatedButton.styleFrom(
@@ -527,44 +571,43 @@ class PlayerScreen extends StatelessWidget {
     final playlists = await PlaylistsService.getPlaylists();
     
     if (playlists.isEmpty) {
-      // Show dialog to create a playlist first
-      final playlistName = await _showCreatePlaylistDialog();
+      final playlistName = await _showCreatePlaylistDialog(context);
       
       if (playlistName != null && playlistName.isNotEmpty) {
         try {
           final newPlaylist = await PlaylistsService.createPlaylist(playlistName);
           await PlaylistsService.addSongToPlaylist(newPlaylist.id, currentItem);
-          Get.snackbar(
-            'Added',
-            'Added to $playlistName',
-            snackPosition: SnackPosition.BOTTOM,
-            backgroundColor: AppColors.surface,
-            duration: const Duration(seconds: 2),
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Added to $playlistName'),
+              backgroundColor: AppColors.surface,
+              duration: const Duration(seconds: 2),
+            ),
           );
         } catch (e) {
-          Get.snackbar(
-            'Error',
-            'Failed to create playlist',
-            snackPosition: SnackPosition.BOTTOM,
-            backgroundColor: AppColors.accent,
-            duration: const Duration(seconds: 2),
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to create playlist'),
+              backgroundColor: AppColors.accent,
+              duration: Duration(seconds: 2),
+            ),
           );
         }
       }
       return;
     }
 
-    // Show playlist selection
-    Get.bottomSheet(
-      Container(
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => Container(
         constraints: BoxConstraints(
           maxHeight: MediaQuery.of(context).size.height * 0.6,
         ),
         padding: const EdgeInsets.symmetric(vertical: 8),
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -587,27 +630,27 @@ class PlayerScreen extends StatelessWidget {
                       color: AppColors.textPrimary,
                     ),
                     onPressed: () async {
-                      Get.back();
-                      final playlistName = await _showCreatePlaylistDialog();
+                      Navigator.pop(context);
+                      final playlistName = await _showCreatePlaylistDialog(context);
                       
                       if (playlistName != null && playlistName.isNotEmpty) {
                         try {
                           final newPlaylist = await PlaylistsService.createPlaylist(playlistName);
                           await PlaylistsService.addSongToPlaylist(newPlaylist.id, currentItem);
-                          Get.snackbar(
-                            'Added',
-                            'Added to $playlistName',
-                            snackPosition: SnackPosition.BOTTOM,
-                            backgroundColor: AppColors.surface,
-                            duration: const Duration(seconds: 2),
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Added to $playlistName'),
+                              backgroundColor: AppColors.surface,
+                              duration: const Duration(seconds: 2),
+                            ),
                           );
                         } catch (e) {
-                          Get.snackbar(
-                            'Error',
-                            'Failed to create playlist',
-                            snackPosition: SnackPosition.BOTTOM,
-                            backgroundColor: AppColors.accent,
-                            duration: const Duration(seconds: 2),
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Failed to create playlist'),
+                              backgroundColor: AppColors.accent,
+                              duration: Duration(seconds: 2),
+                            ),
                           );
                         }
                       }
@@ -678,23 +721,23 @@ class PlayerScreen extends StatelessWidget {
                     onTap: isInPlaylist
                         ? null
                         : () async {
-                            Get.back();
+                            Navigator.pop(context);
                             try {
                               await PlaylistsService.addSongToPlaylist(playlist.id, currentItem);
-                              Get.snackbar(
-                                'Added',
-                                'Added to ${playlist.name}',
-                                snackPosition: SnackPosition.BOTTOM,
-                                backgroundColor: AppColors.surface,
-                                duration: const Duration(seconds: 2),
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Added to ${playlist.name}'),
+                                  backgroundColor: AppColors.surface,
+                                  duration: const Duration(seconds: 2),
+                                ),
                               );
                             } catch (e) {
-                              Get.snackbar(
-                                'Error',
-                                'Failed to add song',
-                                snackPosition: SnackPosition.BOTTOM,
-                                backgroundColor: AppColors.accent,
-                                duration: const Duration(seconds: 2),
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Failed to add song'),
+                                  backgroundColor: AppColors.accent,
+                                  duration: Duration(seconds: 2),
+                                ),
                               );
                             }
                           },
