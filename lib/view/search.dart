@@ -4,6 +4,7 @@ import 'package:umarplayer/theme/app_colors.dart';
 import 'package:umarplayer/models/media_item.dart';
 import 'package:umarplayer/providers/player_provider.dart';
 import 'package:umarplayer/providers/search_provider.dart';
+import 'package:umarplayer/providers/tab_index_provider.dart';
 import 'package:umarplayer/services/playlists_service.dart';
 
 class Search extends StatefulWidget {
@@ -22,8 +23,21 @@ class _SearchState extends State<Search> {
     super.dispose();
   }
 
+  void _checkPendingSearch(BuildContext context) {
+    final tabProvider = Provider.of<TabIndexProvider>(context, listen: false);
+    final query = tabProvider.takePendingSearchQuery();
+    if (query != null && query.isNotEmpty) {
+      _textController.text = query;
+      Provider.of<SearchProvider>(context, listen: false).performSearch(query);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final tabProvider = Provider.of<TabIndexProvider>(context, listen: false);
+    if (tabProvider.pendingSearchQuery != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _checkPendingSearch(context));
+    }
     return Column(
       children: [
         Padding(

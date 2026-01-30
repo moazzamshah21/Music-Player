@@ -7,6 +7,7 @@ import 'package:umarplayer/providers/player_provider.dart';
 import 'package:umarplayer/providers/downloads_provider.dart';
 import 'package:umarplayer/providers/library_provider.dart';
 import 'package:umarplayer/providers/search_provider.dart';
+import 'package:umarplayer/providers/tab_index_provider.dart';
 import 'package:umarplayer/providers/liked_songs_provider.dart';
 import 'package:umarplayer/services/audio_service_manager.dart';
 import 'package:umarplayer/services/notification_service.dart';
@@ -41,6 +42,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   late DownloadsProvider downloadsProvider;
   late LibraryProvider libraryProvider;
   late SearchProvider searchProvider;
+  late TabIndexProvider tabIndexProvider;
   late LikedSongsProvider likedSongsProvider;
 
   @override
@@ -55,6 +57,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     downloadsProvider = DownloadsProvider();
     libraryProvider = LibraryProvider();
     searchProvider = SearchProvider();
+    tabIndexProvider = TabIndexProvider();
     likedSongsProvider = LikedSongsProvider();
     
     // Initialize player provider with dependencies
@@ -93,6 +96,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ChangeNotifierProvider.value(value: downloadsProvider),
         ChangeNotifierProvider.value(value: libraryProvider),
         ChangeNotifierProvider.value(value: searchProvider),
+        ChangeNotifierProvider.value(value: tabIndexProvider),
         ChangeNotifierProvider.value(value: likedSongsProvider),
       ],
       child: MaterialApp(

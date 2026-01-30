@@ -7,17 +7,33 @@ import 'package:umarplayer/view/library.dart';
 import 'package:umarplayer/view/player_screen.dart';
 import 'package:umarplayer/widgets/mini_player.dart';
 import 'package:umarplayer/providers/player_provider.dart';
+import 'package:umarplayer/providers/tab_index_provider.dart';
 import 'package:umarplayer/theme/app_colors.dart';
 
-class MainNavigation extends StatefulWidget {
+class MainNavigation extends StatelessWidget {
   const MainNavigation({super.key});
 
   @override
-  State<MainNavigation> createState() => _MainNavigationState();
+  Widget build(BuildContext context) {
+    return Consumer<TabIndexProvider>(
+      builder: (context, tabProvider, _) {
+        final currentIndex = tabProvider.index;
+        return _MainNavigationBody(currentIndex: currentIndex);
+      },
+    );
+  }
 }
 
-class _MainNavigationState extends State<MainNavigation> {
-  int _currentIndex = 0;
+class _MainNavigationBody extends StatefulWidget {
+  final int currentIndex;
+
+  const _MainNavigationBody({required this.currentIndex});
+
+  @override
+  State<_MainNavigationBody> createState() => _MainNavigationBodyState();
+}
+
+class _MainNavigationBodyState extends State<_MainNavigationBody> {
 
   final List<Widget> _pages = [
     const Home(),
@@ -58,7 +74,7 @@ class _MainNavigationState extends State<MainNavigation> {
             ),
           ),
           // Home tab only: warm gradient on top half
-          if (_currentIndex == 0)
+          if (widget.currentIndex == 0)
             Positioned(
               top: 0,
               left: 0,
@@ -81,7 +97,7 @@ class _MainNavigationState extends State<MainNavigation> {
                 ),
               ),
             ),
-          _pages[_currentIndex],
+          _pages[widget.currentIndex],
             Consumer<PlayerProvider>(
               builder: (context, playerProvider, _) {
                 return playerProvider.currentItem != null
@@ -119,9 +135,10 @@ class _MainNavigationState extends State<MainNavigation> {
               ),
             ),
             child: SafeArea(
-              child: BottomNavigationBar(
-                currentIndex: _currentIndex,
-                onTap: (index) => setState(() => _currentIndex = index),
+              child: Consumer<TabIndexProvider>(
+                builder: (context, tabProvider, _) => BottomNavigationBar(
+                  currentIndex: widget.currentIndex,
+                  onTap: (index) => tabProvider.setIndex(index),
                 backgroundColor: Colors.transparent,
                 elevation: 0,
                 selectedItemColor: AppColors.navActive,
@@ -130,11 +147,12 @@ class _MainNavigationState extends State<MainNavigation> {
                 selectedFontSize: 11,
                 unselectedFontSize: 11,
                 selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
-                items: const [
-                  BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Home'),
-                  BottomNavigationBarItem(icon: Icon(Icons.search_rounded), label: 'Search'),
-                  BottomNavigationBarItem(icon: Icon(Icons.library_music_rounded), label: 'Library'),
-                ],
+                  items: const [
+                    BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Home'),
+                    BottomNavigationBarItem(icon: Icon(Icons.search_rounded), label: 'Search'),
+                    BottomNavigationBarItem(icon: Icon(Icons.library_music_rounded), label: 'Library'),
+                  ],
+                ),
               ),
             ),
           ),

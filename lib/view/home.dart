@@ -6,6 +6,9 @@ import 'package:umarplayer/widgets/media_card.dart';
 import 'package:umarplayer/models/media_item.dart';
 import 'package:umarplayer/providers/home_provider.dart';
 import 'package:umarplayer/providers/player_provider.dart';
+import 'package:umarplayer/providers/search_provider.dart';
+import 'package:umarplayer/providers/tab_index_provider.dart';
+import 'package:umarplayer/widgets/artist_carousel_card.dart';
 
 class Home extends StatelessWidget {
   const Home({super.key});
@@ -85,9 +88,46 @@ class Home extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 24),
-                _sectionTitle('Recently Played'),
+                const SizedBox(height: 12),
+                Consumer<SearchProvider>(
+                  builder: (context, searchProvider, _) {
+                    final artists = searchProvider.recentSearches;
+                    if (artists.isEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        child: Text(
+                          'no recent searches',
+                          style: TextStyle(
+                            color: AppColors.textSecondary.withOpacity(0.8),
+                            fontSize: 15,
+                          ),
+                        ),
+                      );
+                    }
+                    return SizedBox(
+                      height: 100,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: artists.length,
+                        cacheExtent: 500,
+                        itemBuilder: (context, index) {
+                          final item = artists[index];
+                          return ArtistCarouselCard(
+                            item: item,
+                            size: 52,
+                            onTap: () {
+                              Provider.of<TabIndexProvider>(context, listen: false)
+                                  .goToSearchWithQuery(item.title);
+                            },
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
                 const SizedBox(height: 16),
+                _sectionTitle('Recently Played'),
+                const SizedBox(height: 12),
                 Consumer<HomeProvider>(
                   builder: (context, homeProvider, _) {
                     return SizedBox(
