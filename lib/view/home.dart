@@ -91,18 +91,24 @@ class Home extends StatelessWidget {
                 const SizedBox(height: 12),
                 Consumer<SearchProvider>(
                   builder: (context, searchProvider, _) {
-                    final artists = searchProvider.recentSearches;
-                    if (artists.isEmpty) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 24),
-                        child: Text(
-                          'no recent searches',
-                          style: TextStyle(
-                            color: AppColors.textSecondary.withOpacity(0.8),
-                            fontSize: 15,
+                    final artists = searchProvider.carouselArtists;
+                    if (searchProvider.carouselArtistsLoading) {
+                      return SizedBox(
+                        height: 100,
+                        child: Center(
+                          child: SizedBox(
+                            width: 28,
+                            height: 28,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.neonCyan,
+                            ),
                           ),
                         ),
                       );
+                    }
+                    if (artists.isEmpty) {
+                      return const SizedBox.shrink();
                     }
                     return SizedBox(
                       height: 100,
