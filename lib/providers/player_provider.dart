@@ -8,6 +8,7 @@ import 'package:umarplayer/services/audio_service_manager.dart';
 import 'package:umarplayer/services/liked_songs_service.dart';
 import 'package:umarplayer/providers/home_provider.dart';
 import 'package:umarplayer/providers/liked_songs_provider.dart';
+import 'package:umarplayer/providers/library_provider.dart';
 
 class PlayerProvider extends ChangeNotifier {
   final PlayerService playerService = PlayerService();
@@ -94,14 +95,18 @@ class PlayerProvider extends ChangeNotifier {
     if (changed) notifyListeners();
   }
 
+  LibraryProvider? libraryProvider;
+
   void initialize(
     AudioServiceManager audioServiceManager,
     HomeProvider homeProvider, {
     LikedSongsProvider? likedSongsProvider,
+    LibraryProvider? libraryProvider,
   }) {
     this.audioServiceManager = audioServiceManager;
     this.homeProvider = homeProvider;
     this.likedSongsProvider = likedSongsProvider;
+    this.libraryProvider = libraryProvider;
     // Connect the app's player to notification bar controls - critical for
     // background mini player interaction
     audioServiceManager.setPlayerService(playerService);
@@ -493,7 +498,8 @@ class PlayerProvider extends ChangeNotifier {
     
     LikedSongsService.toggleLike(_currentItem!).then((newLikedStatus) {
       _isLiked = newLikedStatus;
-      likedSongsProvider?.loadLikedSongs(); // Refresh liked songs screen
+      likedSongsProvider?.loadLikedSongs();
+      libraryProvider?.loadData(); // Refresh library (Liked Songs count)
       notifyListeners();
     }).catchError((e) {
       _isLiked = wasLiked;

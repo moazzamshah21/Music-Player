@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:audio_service/audio_service.dart' as audio_service;
 import 'package:umarplayer/services/player_service.dart';
 import 'package:umarplayer/services/audio_handler_service.dart';
@@ -120,14 +121,18 @@ class AudioServiceManager {
         config: audio_service.AudioServiceConfig(
           androidNotificationChannelId: 'com.umarplayer.channel.audio',
           androidNotificationChannelName: 'Umar Player',
-          androidNotificationOngoing: true, // Required for foreground service notification to show
-          androidStopForegroundOnPause: false, // Keep notification when paused
+          androidNotificationChannelDescription: 'Audio playback controls',
+          androidNotificationOngoing: true,
+          androidStopForegroundOnPause: false,
           androidNotificationClickStartsActivity: true,
           androidNotificationIcon: 'mipmap/ic_launcher',
+          androidShowNotificationBadge: true,
+          notificationColor: const Color(0xFF1a1a1a), // Dark background like modern media players
+          artDownscaleWidth: 512,
+          artDownscaleHeight: 512,
+          preloadArtwork: true,
           fastForwardInterval: const Duration(seconds: 10),
           rewindInterval: const Duration(seconds: 10),
-          androidShowNotificationBadge: true,
-          androidNotificationChannelDescription: 'Audio playback controls',
         ),
       ).timeout(
         const Duration(seconds: 10),

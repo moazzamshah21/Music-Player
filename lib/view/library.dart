@@ -8,8 +8,21 @@ import 'package:umarplayer/view/playlist_detail_screen.dart';
 import 'package:umarplayer/view/liked_songs_screen.dart';
 import 'package:umarplayer/view/downloads_screen.dart';
 
-class Library extends StatelessWidget {
+class Library extends StatefulWidget {
   const Library({super.key});
+
+  @override
+  State<Library> createState() => _LibraryState();
+}
+
+class _LibraryState extends State<Library> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<LibraryProvider>().loadData();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -10,7 +10,6 @@ import 'package:umarplayer/providers/search_provider.dart';
 import 'package:umarplayer/providers/liked_songs_provider.dart';
 import 'package:umarplayer/services/audio_service_manager.dart';
 import 'package:umarplayer/services/notification_service.dart';
-
 import 'package:just_audio_background/just_audio_background.dart';
 
 void main() async {
@@ -60,8 +59,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     
     // Initialize player provider with dependencies
     playerProvider.initialize(audioServiceManager, homeProvider,
-        likedSongsProvider: likedSongsProvider);
+        likedSongsProvider: likedSongsProvider,
+        libraryProvider: libraryProvider);
     likedSongsProvider.setPlayerProvider(playerProvider);
+    likedSongsProvider.setLibraryProvider(libraryProvider);
 
     // Pre-initialize AudioService so media notification is ready when user plays
     WidgetsBinding.instance.addPostFrameCallback((_) {

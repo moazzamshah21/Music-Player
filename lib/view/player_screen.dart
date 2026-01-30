@@ -366,8 +366,8 @@ class PlayerScreen extends StatelessWidget {
                             width: 64,
                             height: 64,
                             decoration: BoxDecoration(
-                              color: isLoading 
-                                  ? AppColors.surfaceVariant 
+                              color: isLoading
+                                  ? AppColors.surfaceVariant
                                   : AppColors.textPrimary,
                               shape: BoxShape.circle,
                             ),
@@ -533,7 +533,7 @@ class PlayerScreen extends StatelessWidget {
           ),
         );
       });
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Downloading in background. Check Downloads for progress.'),
@@ -555,7 +555,7 @@ class PlayerScreen extends StatelessWidget {
   Future<String?> _showCreatePlaylistDialog(BuildContext context) async {
     final controller = TextEditingController();
     String? result;
-    
+
     await showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -630,40 +630,45 @@ class PlayerScreen extends StatelessWidget {
         ),
       ),
     );
-    
+
     return result;
   }
 
   Future<void> _showAddToPlaylistDialog(BuildContext context, currentItem) async {
     final playlists = await PlaylistsService.getPlaylists();
-    
+
     if (playlists.isEmpty) {
       final playlistName = await _showCreatePlaylistDialog(context);
-      
+
       if (playlistName != null && playlistName.isNotEmpty) {
         try {
           final newPlaylist = await PlaylistsService.createPlaylist(playlistName);
           await PlaylistsService.addSongToPlaylist(newPlaylist.id, currentItem);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Added to $playlistName'),
-              backgroundColor: AppColors.surface,
-              duration: const Duration(seconds: 2),
-            ),
-          );
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Added to $playlistName'),
+                backgroundColor: AppColors.surface,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
         } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to create playlist'),
-              backgroundColor: AppColors.accent,
-              duration: Duration(seconds: 2),
-            ),
-          );
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Failed to create playlist'),
+                backgroundColor: AppColors.accent,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
         }
       }
       return;
     }
 
+    if (!context.mounted) return;
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.surface,
@@ -699,8 +704,8 @@ class PlayerScreen extends StatelessWidget {
                     onPressed: () async {
                       Navigator.pop(context);
                       final playlistName = await _showCreatePlaylistDialog(context);
-                      
-                      if (playlistName != null && playlistName.isNotEmpty) {
+
+                      if (playlistName != null && playlistName.isNotEmpty && context.mounted) {
                         try {
                           final newPlaylist = await PlaylistsService.createPlaylist(playlistName);
                           await PlaylistsService.addSongToPlaylist(newPlaylist.id, currentItem);
@@ -733,7 +738,7 @@ class PlayerScreen extends StatelessWidget {
                 itemBuilder: (context, index) {
                   final playlist = playlists[index];
                   final isInPlaylist = playlist.songs.any((s) => s.id == currentItem.id);
-                  
+
                   return ListTile(
                     leading: Container(
                       width: 48,
@@ -790,22 +795,27 @@ class PlayerScreen extends StatelessWidget {
                         : () async {
                             Navigator.pop(context);
                             try {
-                              await PlaylistsService.addSongToPlaylist(playlist.id, currentItem);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Added to ${playlist.name}'),
-                                  backgroundColor: AppColors.surface,
-                                  duration: const Duration(seconds: 2),
-                                ),
-                              );
+                              await PlaylistsService.addSongToPlaylist(
+                                  playlist.id, currentItem);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Added to ${playlist.name}'),
+                                    backgroundColor: AppColors.surface,
+                                    duration: const Duration(seconds: 2),
+                                  ),
+                                );
+                              }
                             } catch (e) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Failed to add song'),
-                                  backgroundColor: AppColors.accent,
-                                  duration: Duration(seconds: 2),
-                                ),
-                              );
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Failed to add song'),
+                                    backgroundColor: AppColors.accent,
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                              }
                             }
                           },
                   );

@@ -2,17 +2,23 @@ import 'package:flutter/foundation.dart';
 import 'package:umarplayer/models/media_item.dart';
 import 'package:umarplayer/services/liked_songs_service.dart';
 import 'package:umarplayer/providers/player_provider.dart';
+import 'package:umarplayer/providers/library_provider.dart';
 
 class LikedSongsProvider extends ChangeNotifier {
   List<MediaItem> _likedSongs = [];
   bool _isLoading = true;
   PlayerProvider? _playerProvider;
+  LibraryProvider? _libraryProvider;
 
   List<MediaItem> get likedSongs => List.unmodifiable(_likedSongs);
   bool get isLoading => _isLoading;
 
   void setPlayerProvider(PlayerProvider playerProvider) {
     _playerProvider = playerProvider;
+  }
+
+  void setLibraryProvider(LibraryProvider libraryProvider) {
+    _libraryProvider = libraryProvider;
   }
 
   LikedSongsProvider() {
@@ -37,8 +43,8 @@ class LikedSongsProvider extends ChangeNotifier {
   Future<void> removeLikedSong(MediaItem item) async {
     await LikedSongsService.removeLikedSong(item.id);
     await loadLikedSongs();
-    
-    // Update player provider's liked status if this is the current song
+    _libraryProvider?.loadData(); // Refresh library screen
+
     if (_playerProvider?.currentItem?.id == item.id) {
       _playerProvider?.refreshLikedStatus();
     }
