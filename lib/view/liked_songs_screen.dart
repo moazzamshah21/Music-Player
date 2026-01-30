@@ -7,8 +7,21 @@ import 'package:umarplayer/providers/liked_songs_provider.dart';
 import 'package:umarplayer/widgets/mini_player.dart';
 import 'package:umarplayer/view/player_screen.dart';
 
-class LikedSongsScreen extends StatelessWidget {
+class LikedSongsScreen extends StatefulWidget {
   const LikedSongsScreen({super.key});
+
+  @override
+  State<LikedSongsScreen> createState() => _LikedSongsScreenState();
+}
+
+class _LikedSongsScreenState extends State<LikedSongsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<LikedSongsProvider>().loadLikedSongs();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,6 +74,8 @@ class LikedSongsScreen extends StatelessWidget {
                         currentItem: playerProvider.currentItem,
                         isPlaying: playerProvider.isPlaying,
                         isLiked: playerProvider.isLiked,
+                        isLoading: playerProvider.isLoading,
+                        loadingMessage: playerProvider.loadingMessage,
                         onPlayPause: () => playerProvider.playPause(),
                         onTap: () {
                           if (playerProvider.currentItem != null) {

@@ -1,5 +1,6 @@
 import 'package:just_audio/just_audio.dart';
-import 'package:umarplayer/models/media_item.dart';
+import 'package:just_audio_background/just_audio_background.dart';
+import 'package:umarplayer/models/media_item.dart' as app;
 import 'package:umarplayer/services/youtube_service.dart';
 import 'package:umarplayer/services/downloads_service.dart';
 
@@ -7,7 +8,7 @@ class PlayerService {
   final AudioPlayer audioPlayer = AudioPlayer();
   final YouTubeService _youtubeService = YouTubeService();
   
-  MediaItem? _currentItem;
+  app.MediaItem? _currentItem;
   bool _isPlaying = false;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
@@ -15,7 +16,7 @@ class PlayerService {
   bool _isRepeatEnabled = false;
 
   // Getters
-  MediaItem? get currentItem => _currentItem;
+  app.MediaItem? get currentItem => _currentItem;
   bool get isPlaying => _isPlaying;
   Duration get position => _position;
   Duration get duration => _duration;
@@ -43,18 +44,21 @@ class PlayerService {
     });
   }
 
-  Future<void> playMediaItem(MediaItem item) async {
+  Future<void> playMediaItem(app.MediaItem item) async {
     try {
       // CRITICAL: Stop current playback IMMEDIATELY and completely
       // This ensures the old song stops before loading new one
       if (audioPlayer.processingState != ProcessingState.idle) {
-        print('Stopping current playback...');
+        print('Stopping current playback and clearing audio source...');
         // Pause first to stop audio immediately (stops playback)
         await audioPlayer.pause();
         // Small delay to ensure pause takes effect
         await Future.delayed(const Duration(milliseconds: 50));
         // Then stop to reset player state completely
         await audioPlayer.stop();
+        // CRITICAL: Clear the audio source to release old stream/cache
+        // Stop() should clear it, but we ensure it's cleared by waiting for idle
+        // The idle state means the source is cleared
         // Wait for player to fully reach idle state (ensures old source is cleared)
         int waitAttempts = 0;
         while (audioPlayer.processingState != ProcessingState.idle && waitAttempts < 30) {
@@ -63,7 +67,7 @@ class PlayerService {
         }
         // Additional delay to ensure audio stream is completely released
         await Future.delayed(const Duration(milliseconds: 200));
-        print('Current playback fully stopped and cleared');
+        print('Current playback fully stopped and audio source cleared');
       }
       
       // Clear current item reference before setting new one
@@ -76,10 +80,17 @@ class PlayerService {
       final localFilePath = await DownloadsService.getLocalFilePath(item.id);
       if (localFilePath != null) {
         print('Playing local file: $localFilePath');
-        await audioPlayer.setFilePath(localFilePath);
-        await _waitForPlayerReady();
+        final bgMediaItem = MediaItem(
+          id: item.id,
+          album: item.album ?? 'Unknown Album',
+          title: item.title,
+          artist: item.artist ?? item.subtitle ?? 'Unknown Artist',
+          artUri: item.imageUrl != null ? Uri.tryParse(item.imageUrl!) : null,
+        );
+        await audioPlayer.setAudioSource(
+          AudioSource.file(localFilePath, tag: bgMediaItem),
+        );
         await audioPlayer.play();
-        // Don't manually set _isPlaying - let the playerStateStream handle it
         print('Local audio playback started');
         return;
       }
@@ -100,9 +111,16 @@ class PlayerService {
       
       // Use AudioSource.uri with headers to bypass YouTube's 403 error
       try {
-        // Create AudioSource with proper headers to avoid 403
+        final bgMediaItem = MediaItem(
+          id: item.id,
+          album: item.album ?? 'Unknown Album',
+          title: item.title,
+          artist: item.artist ?? item.subtitle ?? 'Unknown Artist',
+          artUri: item.imageUrl != null ? Uri.tryParse(item.imageUrl!) : null,
+        );
         final audioSource = AudioSource.uri(
           streamUrl,
+          tag: bgMediaItem,
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': '*/*',
@@ -134,7 +152,16 @@ class PlayerService {
         // Fallback: try without headers using setUrl
         try {
           print('Trying fallback method (setUrl without headers)...');
-          await audioPlayer.setUrl(streamUrl.toString());
+          final bgMediaItem = MediaItem(
+            id: item.id,
+            album: item.album ?? 'Unknown Album',
+            title: item.title,
+            artist: item.artist ?? item.subtitle ?? 'Unknown Artist',
+            artUri: item.imageUrl != null ? Uri.tryParse(item.imageUrl!) : null,
+          );
+          await audioPlayer.setAudioSource(
+            AudioSource.uri(streamUrl, tag: bgMediaItem),
+          );
           await audioPlayer.play();
           // Don't manually set _isPlaying - let the playerStateStream handle it
           print('Audio source set without headers (fallback)');
@@ -152,33 +179,6 @@ class PlayerService {
     }
   }
 
-  Future<void> _waitForPlayerReady() async {
-    // Wait for player to be ready (with shorter timeout)
-    int attempts = 0;
-    const maxAttempts = 50; // 5 seconds max wait (reduced from 10)
-    
-    // Check current state first (might already be ready)
-    var state = audioPlayer.playerState;
-    if (state.processingState == ProcessingState.ready ||
-        state.processingState == ProcessingState.buffering) {
-      print('Player is ready');
-      return;
-    }
-    
-    // Poll with shorter intervals for faster response
-    while (attempts < maxAttempts) {
-      state = audioPlayer.playerState;
-      if (state.processingState == ProcessingState.ready ||
-          state.processingState == ProcessingState.buffering) {
-        print('Player is ready');
-        return;
-      }
-      await Future.delayed(const Duration(milliseconds: 100));
-      attempts++;
-    }
-    
-    print('Player ready timeout, proceeding anyway');
-  }
 
   Future<void> playPause() async {
     try {

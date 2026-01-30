@@ -7,10 +7,17 @@ import 'package:umarplayer/services/player_service.dart';
 // Global reference to audio handler
 AudioHandlerService? globalAudioHandler;
 
+typedef OnTrackChangedCallback = void Function(
+  MediaItem item,
+  List<MediaItem> queue,
+  int index,
+);
+
 class AudioHandlerService extends audio_service.BaseAudioHandler
     with audio_service.QueueHandler, audio_service.SeekHandler {
   final PlayerService _playerService;
-  
+  final OnTrackChangedCallback? _onTrackChanged;
+
   final _mediaItemController = StreamController<List<MediaItem>>();
   final _currentIndexController = StreamController<int>();
   
@@ -18,7 +25,8 @@ class AudioHandlerService extends audio_service.BaseAudioHandler
   List<MediaItem> _queue = [];
   MediaItem? _currentMediaItem;
 
-  AudioHandlerService(this._playerService) {
+  AudioHandlerService(this._playerService, {OnTrackChangedCallback? onTrackChanged})
+      : _onTrackChanged = onTrackChanged {
     globalAudioHandler = this;
     // Initialize with default playback state
     playbackState.add(_getInitialPlaybackState());
@@ -136,16 +144,41 @@ class AudioHandlerService extends audio_service.BaseAudioHandler
 
   @override
   Future<void> play() async {
-    // Ensure media item is set before playing
-    if (_currentMediaItem != null) {
-      mediaItem.add(_createAudioServiceMediaItem(_currentMediaItem!));
+    // CRITICAL: Only play if player is actually paused AND has a valid source
+    // This prevents auto-resume when user has intentionally paused
+    final currentState = _playerService.audioPlayer.playerState;
+    if (currentState.playing) {
+      print('AudioHandler: Player already playing, ignoring play() call');
+      return;
     }
+    
+    // Only play if there's a valid media item and the player has a source
+    if (_currentMediaItem == null) {
+      print('AudioHandler: No media item, ignoring play() call');
+      return;
+    }
+    
+    if (currentState.processingState == ProcessingState.idle) {
+      print('AudioHandler: Player is idle (no source), ignoring play() call');
+      return;
+    }
+    
+    // Ensure media item is set before playing
+    mediaItem.add(_createAudioServiceMediaItem(_currentMediaItem!));
     await _playerService.audioPlayer.play();
     // Playback state will be updated automatically by the listener
   }
 
   @override
   Future<void> pause() async {
+    // CRITICAL: Only pause if player is actually playing
+    // This prevents conflicts
+    final currentState = _playerService.audioPlayer.playerState;
+    if (!currentState.playing) {
+      print('AudioHandler: Player already paused, ignoring pause() call');
+      return;
+    }
+    
     await _playerService.audioPlayer.pause();
     // Playback state will be updated automatically by the listener
   }
@@ -220,11 +253,31 @@ class AudioHandlerService extends audio_service.BaseAudioHandler
         updateTime: DateTime.now(),
       ));
       
+      // CRITICAL: Stop current playback completely before playing new item
+      // This ensures old song doesn't play over new one
+      if (_playerService.audioPlayer.processingState != ProcessingState.idle) {
+        print('AudioHandler: Stopping current playback before playing new item');
+        await _playerService.audioPlayer.pause();
+        await Future.delayed(const Duration(milliseconds: 50));
+        await _playerService.audioPlayer.stop();
+        // Wait for idle state (this clears the audio source/cache)
+        int waitAttempts = 0;
+        while (_playerService.audioPlayer.processingState != ProcessingState.idle && waitAttempts < 30) {
+          await Future.delayed(const Duration(milliseconds: 50));
+          waitAttempts++;
+        }
+        await Future.delayed(const Duration(milliseconds: 200));
+        print('AudioHandler: Current playback stopped and cleared');
+      }
+      
       // Play the item using player service
       print('▶️ AudioHandler: Starting playback via PlayerService');
       await _playerService.playMediaItem(item);
       print('✅ AudioHandler: Playback started, notification should be visible');
-      
+
+      // Notify app (e.g. PlayerProvider) so UI stays in sync with notification controls
+      _onTrackChanged?.call(item, List.from(_queue), index);
+
       // Playback state will be updated automatically by the listener
       // This will show/update the notification with play/pause controls
       
@@ -274,6 +327,64 @@ class AudioHandlerService extends audio_service.BaseAudioHandler
       _currentIndex = 0;
       await _playItem(item, 0);
     }
+  }
+
+  /// Call before playback starts to ensure notification appears (shows loading state).
+  void prepareNotification(MediaItem item, {List<MediaItem>? queueList}) {
+    _currentMediaItem = item;
+    if (queueList != null && queueList.isNotEmpty) {
+      _queue = queueList;
+      final index = queueList.indexWhere((i) => i.id == item.id);
+      _currentIndex = index >= 0 ? index : 0;
+      queue.add(queueList.map((i) => _createAudioServiceMediaItem(i)).toList());
+    } else {
+      _queue = [item];
+      _currentIndex = 0;
+    }
+    mediaItem.add(_createAudioServiceMediaItem(item));
+    // Use loading state to trigger foreground notification display
+    playbackState.add(audio_service.PlaybackState(
+      controls: [
+        audio_service.MediaControl.skipToPrevious,
+        audio_service.MediaControl.pause,
+        audio_service.MediaControl.skipToNext,
+        audio_service.MediaControl.stop,
+      ],
+      systemActions: const {
+        audio_service.MediaAction.seek,
+        audio_service.MediaAction.seekForward,
+        audio_service.MediaAction.seekBackward,
+      },
+      androidCompactActionIndices: const [0, 1, 2],
+      processingState: audio_service.AudioProcessingState.loading,
+      playing: false,
+      updatePosition: Duration.zero,
+      speed: 1.0,
+      queueIndex: _currentIndex >= 0 ? _currentIndex : null,
+      updateTime: DateTime.now(),
+    ));
+  }
+
+  // Update notification without playing (used when playback is already started)
+  void updateNotificationOnly(MediaItem item, {List<MediaItem>? queueList}) {
+    _currentMediaItem = item;
+    if (queueList != null && queueList.isNotEmpty) {
+      _queue = queueList;
+      final index = queueList.indexWhere((i) => i.id == item.id);
+      _currentIndex = index >= 0 ? index : 0;
+      queue.add(queueList.map((i) => _createAudioServiceMediaItem(i)).toList());
+    } else {
+      _queue = [item];
+      _currentIndex = 0;
+    }
+    
+    // Update media item for notification
+    final audioServiceMediaItem = _createAudioServiceMediaItem(item);
+    mediaItem.add(audioServiceMediaItem);
+    
+    // Update playback state to reflect current player state (preserve playing state)
+    final currentPlayerState = _playerService.audioPlayer.playerState;
+    playbackState.add(_getPlaybackState(currentPlayerState));
   }
 
   audio_service.MediaItem _createAudioServiceMediaItem(MediaItem item) {

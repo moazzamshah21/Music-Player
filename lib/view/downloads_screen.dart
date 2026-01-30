@@ -144,6 +144,8 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                         currentItem: playerProvider.currentItem,
                         isPlaying: playerProvider.isPlaying,
                         isLiked: playerProvider.isLiked,
+                        isLoading: playerProvider.isLoading,
+                        loadingMessage: playerProvider.loadingMessage,
                         onPlayPause: () => playerProvider.playPause(),
                         onTap: () {
                           if (playerProvider.currentItem != null) {

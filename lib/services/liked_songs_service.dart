@@ -119,20 +119,26 @@ class LikedSongsService {
   // Convert JSON to MediaItem
   static MediaItem _mediaItemFromJson(Map<String, dynamic> json) {
     return MediaItem(
-      id: json['id'] as String,
-      title: json['title'] as String,
-      subtitle: json['subtitle'] as String?,
-      artist: json['artist'] as String?,
+      id: json['id'] as String? ?? '',
+      title: json['title'] as String? ?? 'Unknown',
+      subtitle: json['subtitle'] as String? ?? json['artist'] as String?,
+      artist: json['artist'] as String? ?? json['subtitle'] as String?,
       album: json['album'] as String?,
       imageUrl: json['imageUrl'] as String?,
-      type: json['type'] as String,
+      type: json['type'] as String? ?? 'song',
       duration: json['duration'] != null
-          ? Duration(seconds: json['duration'] as int)
+          ? Duration(seconds: (json['duration'] is int)
+              ? json['duration'] as int
+              : (json['duration'] as num).toInt())
           : null,
       description: json['description'] as String?,
-      viewCount: json['viewCount'] as int?,
+      viewCount: json['viewCount'] != null
+          ? ((json['viewCount'] is int)
+              ? json['viewCount'] as int
+              : (json['viewCount'] as num).toInt())
+          : null,
       uploadDate: json['uploadDate'] != null
-          ? DateTime.parse(json['uploadDate'] as String)
+          ? DateTime.tryParse(json['uploadDate'] as String)
           : null,
     );
   }

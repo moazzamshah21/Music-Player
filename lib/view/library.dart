@@ -2,11 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:umarplayer/theme/app_colors.dart';
 import 'package:umarplayer/models/playlist.dart';
-import 'package:umarplayer/providers/player_provider.dart';
 import 'package:umarplayer/providers/library_provider.dart';
 import 'package:umarplayer/providers/downloads_provider.dart';
-import 'package:umarplayer/widgets/mini_player.dart';
-import 'package:umarplayer/view/player_screen.dart';
 import 'package:umarplayer/view/playlist_detail_screen.dart';
 import 'package:umarplayer/view/liked_songs_screen.dart';
 import 'package:umarplayer/view/downloads_screen.dart';
@@ -56,33 +53,6 @@ class Library extends StatelessWidget {
               ),
             ),
           ],
-        ),
-        // Mini Player - positioned above bottom nav
-        Consumer<PlayerProvider>(
-          builder: (context, playerProvider, _) {
-            return playerProvider.currentItem != null
-                ? Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: MiniPlayer(
-                      currentItem: playerProvider.currentItem,
-                      isPlaying: playerProvider.isPlaying,
-                      isLiked: playerProvider.isLiked,
-                      onPlayPause: () => playerProvider.playPause(),
-                      onTap: () {
-                        if (playerProvider.currentItem != null) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const PlayerScreen()),
-                          );
-                        }
-                      },
-                      onFavorite: () => playerProvider.toggleFavorite(),
-                    ),
-                  )
-                : const SizedBox.shrink();
-          },
         ),
       ],
     );

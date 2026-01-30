@@ -7,6 +7,8 @@ class MiniPlayer extends StatelessWidget {
   final MediaItem? currentItem;
   final bool isPlaying;
   final bool isLiked;
+  final bool isLoading;
+  final String? loadingMessage;
   final VoidCallback? onPlayPause;
   final VoidCallback? onTap;
   final VoidCallback? onFavorite;
@@ -16,6 +18,8 @@ class MiniPlayer extends StatelessWidget {
     this.currentItem,
     this.isPlaying = false,
     this.isLiked = false,
+    this.isLoading = false,
+    this.loadingMessage,
     this.onPlayPause,
     this.onTap,
     this.onFavorite,
@@ -118,14 +122,27 @@ class MiniPlayer extends StatelessWidget {
               ),
               onPressed: onFavorite,
             ),
-            IconButton(
-              icon: Icon(
-                isPlaying ? Icons.pause : Icons.play_arrow,
-                color: AppColors.textPrimary,
-                size: 28,
-              ),
-              onPressed: onPlayPause,
-            ),
+            // Play/Pause or Loading indicator
+            isLoading
+                ? Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  )
+                : IconButton(
+                    icon: Icon(
+                      isPlaying ? Icons.pause : Icons.play_arrow,
+                      color: AppColors.textPrimary,
+                      size: 28,
+                    ),
+                    onPressed: isLoading ? null : onPlayPause,
+                  ),
           ],
         ),
       ),

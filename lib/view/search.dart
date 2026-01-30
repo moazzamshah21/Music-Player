@@ -4,8 +4,6 @@ import 'package:umarplayer/theme/app_colors.dart';
 import 'package:umarplayer/models/media_item.dart';
 import 'package:umarplayer/providers/player_provider.dart';
 import 'package:umarplayer/providers/search_provider.dart';
-import 'package:umarplayer/widgets/mini_player.dart';
-import 'package:umarplayer/view/player_screen.dart';
 import 'package:umarplayer/services/playlists_service.dart';
 
 class Search extends StatefulWidget {
@@ -84,33 +82,6 @@ class _SearchState extends State<Search> {
               ),
             ),
           ],
-        ),
-        // Mini Player - positioned above bottom nav
-        Consumer<PlayerProvider>(
-          builder: (context, playerProvider, _) {
-            return playerProvider.currentItem != null
-                ? Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: MiniPlayer(
-                      currentItem: playerProvider.currentItem,
-                      isPlaying: playerProvider.isPlaying,
-                      isLiked: playerProvider.isLiked,
-                      onPlayPause: () => playerProvider.playPause(),
-                      onTap: () {
-                        if (playerProvider.currentItem != null) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const PlayerScreen()),
-                          );
-                        }
-                      },
-                      onFavorite: () => playerProvider.toggleFavorite(),
-                    ),
-                  )
-                : const SizedBox.shrink();
-          },
         ),
       ],
     );

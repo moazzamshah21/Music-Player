@@ -13,6 +13,21 @@ class AudioServiceManager {
   AudioHandlerService? _audioHandler;
   PlayerService? _playerService;
 
+  /// Must be called with the app's PlayerService before first playback.
+  /// This ensures notification bar controls interact with the same player instance.
+  void setPlayerService(PlayerService playerService) {
+    _playerService = playerService;
+  }
+
+  OnTrackChangedCallback? _onTrackChanged;
+
+  /// Called when notification bar controls change the track (next/previous).
+  /// Keeps the app UI in sync when user interacts with the background mini player.
+  void setOnTrackChanged(OnTrackChangedCallback? callback) {
+    _onTrackChanged = callback;
+  }
+
+
   bool get isInitialized => _isInitialized;
   bool get isInitializing => _isInitializing;
   AudioHandlerService? get audioHandler => _audioHandler;
@@ -80,7 +95,9 @@ class AudioServiceManager {
       
       print('🔧 [AudioServiceManager] Initializing AudioService... (attempt ${retryCount + 1})');
       
-      _playerService = PlayerService();
+      // Use the app's PlayerService (set via setPlayerService) so notification
+      // bar controls interact with the same player. Fallback only for edge cases.
+      _playerService ??= PlayerService();
       
       // Check one more time if AudioService was initialized by another thread
       // This prevents the _cacheManager assertion error
@@ -94,13 +111,16 @@ class AudioServiceManager {
       
       await audio_service.AudioService.init(
         builder: () {
-          _audioHandler = AudioHandlerService(_playerService!);
+          _audioHandler = AudioHandlerService(
+            _playerService!,
+            onTrackChanged: _onTrackChanged,
+          );
           return _audioHandler!;
         },
         config: audio_service.AudioServiceConfig(
           androidNotificationChannelId: 'com.umarplayer.channel.audio',
           androidNotificationChannelName: 'Umar Player',
-          androidNotificationOngoing: false, // Allow swiping away
+          androidNotificationOngoing: true, // Required for foreground service notification to show
           androidStopForegroundOnPause: false, // Keep notification when paused
           androidNotificationClickStartsActivity: true,
           androidNotificationIcon: 'mipmap/ic_launcher',
@@ -162,7 +182,10 @@ class AudioServiceManager {
           if (_playerService == null) {
             _playerService = PlayerService();
           }
-          _audioHandler = AudioHandlerService(_playerService!);
+          _audioHandler = AudioHandlerService(
+            _playerService!,
+            onTrackChanged: _onTrackChanged,
+          );
           // The handler constructor sets globalAudioHandler = this
           _isInitialized = true;
           _isAudioServiceInitialized = true;

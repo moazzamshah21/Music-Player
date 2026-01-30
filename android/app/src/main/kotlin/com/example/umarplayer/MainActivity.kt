@@ -1,5 +1,6 @@
 package com.example.umarplayer
 
-import io.flutter.embedding.android.FlutterActivity
+import com.ryanheise.audioservice.AudioServiceActivity
 
-class MainActivity : FlutterActivity()
+// Extend AudioServiceActivity for media notification to work in notification bar
+class MainActivity : AudioServiceActivity()

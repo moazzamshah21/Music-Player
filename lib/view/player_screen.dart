@@ -92,56 +92,102 @@ class PlayerScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 20),
-                // Album Art
+                // Album Art with Loading Overlay
                 Expanded(
                   child: Center(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
                       child: AspectRatio(
                         aspectRatio: 1,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.3),
-                                blurRadius: 20,
-                                spreadRadius: 5,
+                        child: Stack(
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.3),
+                                    blurRadius: 20,
+                                    spreadRadius: 5,
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: currentItem.imageUrl != null && currentItem.imageUrl!.isNotEmpty
-                                ? CachedNetworkImage(
-                                    imageUrl: currentItem.imageUrl!,
-                                    fit: BoxFit.cover,
-                                    placeholder: (context, url) => Container(
-                                      color: AppColors.surfaceVariant,
-                                      child: const Center(
-                                        child: CircularProgressIndicator(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: currentItem.imageUrl != null && currentItem.imageUrl!.isNotEmpty
+                                    ? CachedNetworkImage(
+                                        imageUrl: currentItem.imageUrl!,
+                                        fit: BoxFit.cover,
+                                        placeholder: (context, url) => Container(
+                                          color: AppColors.surfaceVariant,
+                                          child: const Center(
+                                            child: CircularProgressIndicator(
+                                              color: AppColors.textTertiary,
+                                            ),
+                                          ),
+                                        ),
+                                        errorWidget: (context, url, error) => Container(
+                                          color: AppColors.surfaceVariant,
+                                          child: const Icon(
+                                            Icons.music_note,
+                                            color: AppColors.textTertiary,
+                                            size: 80,
+                                          ),
+                                        ),
+                                      )
+                                    : Container(
+                                        color: AppColors.surfaceVariant,
+                                        child: const Icon(
+                                          Icons.music_note,
                                           color: AppColors.textTertiary,
+                                          size: 80,
                                         ),
                                       ),
-                                    ),
-                                    errorWidget: (context, url, error) => Container(
-                                      color: AppColors.surfaceVariant,
-                                      child: const Icon(
-                                        Icons.music_note,
-                                        color: AppColors.textTertiary,
-                                        size: 80,
-                                      ),
-                                    ),
-                                  )
-                                : Container(
-                                    color: AppColors.surfaceVariant,
-                                    child: const Icon(
-                                      Icons.music_note,
-                                      color: AppColors.textTertiary,
-                                      size: 80,
-                                    ),
+                              ),
+                            ),
+                            // Buffering overlay (during playback)
+                            if (playerProvider.isBuffering && !playerProvider.isLoading)
+                              Positioned(
+                                bottom: 8,
+                                left: 8,
+                                right: 8,
+                                child: LinearProgressIndicator(
+                                  backgroundColor: AppColors.border,
+                                  valueColor: const AlwaysStoppedAnimation<Color>(
+                                    AppColors.textPrimary,
                                   ),
-                          ),
+                                ),
+                              ),
+                            // Loading overlay
+                            if (playerProvider.isLoading)
+                              Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  color: Colors.black.withOpacity(0.5),
+                                ),
+                                child: Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const CircularProgressIndicator(
+                                        color: AppColors.textPrimary,
+                                      ),
+                                      if (playerProvider.loadingMessage.isNotEmpty) ...[
+                                        const SizedBox(height: 16),
+                                        Text(
+                                          playerProvider.loadingMessage,
+                                          style: const TextStyle(
+                                            color: AppColors.textPrimary,
+                                            fontSize: 14,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                     ),
@@ -219,12 +265,11 @@ class PlayerScreen extends StatelessWidget {
                           builder: (context, playerProvider, _) {
                             return Slider(
                               value: progress.clamp(0.0, 1.0),
-                              onChangeStart: (value) {},
+                              onChangeStart: (_) => playerProvider.setSeeking(true),
                               onChanged: (value) {
                                 final newPosition = Duration(
                                   milliseconds: (value * duration.inMilliseconds).toInt(),
                                 );
-                                // Update position directly for smooth slider feedback
                                 playerProvider.updatePosition(newPosition);
                               },
                               onChangeEnd: (value) {
@@ -301,45 +346,67 @@ class PlayerScreen extends StatelessWidget {
                         },
                       ),
                       // Previous
-                      IconButton(
-                        icon: const Icon(
-                          Icons.skip_previous,
-                          color: AppColors.textPrimary,
-                          size: 32,
-                        ),
-                        onPressed: () => playerProvider.playPrevious(),
+                      Consumer<PlayerProvider>(
+                        builder: (context, playerProvider, _) {
+                          return IconButton(
+                            icon: const Icon(
+                              Icons.skip_previous,
+                              color: AppColors.textPrimary,
+                              size: 32,
+                            ),
+                            onPressed: () => playerProvider.playPrevious(),
+                          );
+                        },
                       ),
                       // Play/Pause
                       Consumer<PlayerProvider>(
                         builder: (context, playerProvider, _) {
+                          final isLoading = playerProvider.isLoading;
                           return Container(
                             width: 64,
                             height: 64,
-                            decoration: const BoxDecoration(
-                              color: AppColors.textPrimary,
+                            decoration: BoxDecoration(
+                              color: isLoading 
+                                  ? AppColors.surfaceVariant 
+                                  : AppColors.textPrimary,
                               shape: BoxShape.circle,
                             ),
-                            child: IconButton(
-                              icon: Icon(
-                                playerProvider.isPlaying
-                                    ? Icons.pause
-                                    : Icons.play_arrow,
-                                color: AppColors.background,
-                                size: 32,
-                              ),
-                              onPressed: () => playerProvider.playPause(),
-                            ),
+                            child: isLoading
+                                ? const Center(
+                                    child: SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                  )
+                                : IconButton(
+                                    icon: Icon(
+                                      playerProvider.isPlaying
+                                          ? Icons.pause
+                                          : Icons.play_arrow,
+                                      color: AppColors.background,
+                                      size: 32,
+                                    ),
+                                    onPressed: isLoading ? null : () => playerProvider.playPause(),
+                                  ),
                           );
                         },
                       ),
                       // Next
-                      IconButton(
-                        icon: const Icon(
-                          Icons.skip_next,
-                          color: AppColors.textPrimary,
-                          size: 32,
-                        ),
-                        onPressed: () => playerProvider.playNext(),
+                      Consumer<PlayerProvider>(
+                        builder: (context, playerProvider, _) {
+                          return IconButton(
+                            icon: const Icon(
+                              Icons.skip_next,
+                              color: AppColors.textPrimary,
+                              size: 32,
+                            ),
+                            onPressed: () => playerProvider.playNext(),
+                          );
+                        },
                       ),
                       // Repeat
                       Consumer<PlayerProvider>(

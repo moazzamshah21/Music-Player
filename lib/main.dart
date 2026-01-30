@@ -11,14 +11,20 @@ import 'package:umarplayer/providers/liked_songs_provider.dart';
 import 'package:umarplayer/services/audio_service_manager.dart';
 import 'package:umarplayer/services/notification_service.dart';
 
+import 'package:just_audio_background/just_audio_background.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize notification service and request permissions
+
+  await JustAudioBackground.init(
+    androidNotificationChannelId: 'com.umarplayer.channel.audio',
+    androidNotificationChannelName: 'Umar Player',
+    androidNotificationOngoing: true,
+  );
+
   print('🚀 Starting app initialization...');
   await NotificationService().initialize();
-  
-  // Run app with Provider
+
   runApp(const MyApp());
 }
 
@@ -53,8 +59,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     likedSongsProvider = LikedSongsProvider();
     
     // Initialize player provider with dependencies
-    playerProvider.initialize(audioServiceManager, homeProvider);
+    playerProvider.initialize(audioServiceManager, homeProvider,
+        likedSongsProvider: likedSongsProvider);
     likedSongsProvider.setPlayerProvider(playerProvider);
+
+    // Pre-initialize AudioService so media notification is ready when user plays
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      audioServiceManager.ensureInitialized();
+    });
   }
 
   @override
@@ -65,7 +77,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // App lifecycle state changes handled here if needed
+    if (state == AppLifecycleState.resumed) {
+      playerProvider.syncStateFromPlayer();
+    }
   }
 
   @override

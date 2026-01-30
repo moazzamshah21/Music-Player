@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:umarplayer/theme/app_colors.dart';
 import 'package:umarplayer/widgets/media_card.dart';
-import 'package:umarplayer/widgets/mini_player.dart';
 import 'package:umarplayer/models/media_item.dart';
-import 'package:umarplayer/view/player_screen.dart';
 import 'package:umarplayer/providers/home_provider.dart';
 import 'package:umarplayer/providers/player_provider.dart';
 
@@ -40,16 +38,6 @@ class Home extends StatelessWidget {
           backgroundColor: AppColors.accent,
           duration: const Duration(seconds: 3),
         ),
-      );
-    }
-  }
-
-  void _openPlayerScreen(BuildContext context) {
-    final playerProvider = Provider.of<PlayerProvider>(context, listen: false);
-    if (playerProvider.currentItem != null) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const PlayerScreen()),
       );
     }
   }
@@ -225,33 +213,13 @@ class Home extends StatelessWidget {
                           );
                         },
                       ),
-                      const SizedBox(height: 140), // Space for mini player + bottom nav
+                      const SizedBox(height: 80), // Space for mini player + bottom nav
                     ],
                   ),
                 ),
               ),
             ),
           ],
-        ),
-        // Mini Player - positioned above bottom nav
-        Consumer<PlayerProvider>(
-          builder: (context, playerProvider, _) {
-            return playerProvider.currentItem != null
-                ? Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: MiniPlayer(
-                      currentItem: playerProvider.currentItem,
-                      isPlaying: playerProvider.isPlaying,
-                      isLiked: playerProvider.isLiked,
-                      onPlayPause: () => playerProvider.playPause(),
-                      onTap: () => _openPlayerScreen(context),
-                      onFavorite: () => playerProvider.toggleFavorite(),
-                    ),
-                  )
-                : const SizedBox.shrink();
-          },
         ),
       ],
     );
