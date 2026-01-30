@@ -17,6 +17,7 @@ dependencies:
   android_content_provider: ^0.4.1
   permission_handler : ^11.0.1
   rxdart: ^0.27.2
+  google_fonts: ^6.2.1
   audio_service:
     path: ../
   audio_service_mpris: ^0.1.3

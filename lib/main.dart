@@ -17,7 +17,7 @@ void main() async {
 
   await JustAudioBackground.init(
     androidNotificationChannelId: 'com.umarplayer.channel.audio',
-    androidNotificationChannelName: 'Umar Player',
+    androidNotificationChannelName: 'RΛVE',
     androidNotificationOngoing: true,
   );
 
@@ -97,7 +97,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
-        title: 'Umar Player',
+        title: 'RΛVE',
         theme: AppTheme.darkTheme,
         home: const MainNavigation(),
       ),

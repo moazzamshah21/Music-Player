@@ -50,6 +50,8 @@ class SeekBarState extends State<SeekBar> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
     final value = min(
       _dragValue ?? widget.position.inMilliseconds.toDouble(),
       widget.duration.inMilliseconds.toDouble(),
@@ -62,8 +64,9 @@ class SeekBarState extends State<SeekBar> {
         SliderTheme(
           data: _sliderThemeData.copyWith(
             thumbShape: HiddenThumbComponentShape(),
-            activeTrackColor: Colors.blue.shade100,
-            inactiveTrackColor: Colors.grey.shade300,
+            activeTrackColor: primary.withOpacity(0.4),
+            inactiveTrackColor: Colors.white.withOpacity(0.08),
+            trackHeight: 6,
           ),
           child: ExcludeSemantics(
             child: Slider(
@@ -78,6 +81,12 @@ class SeekBarState extends State<SeekBar> {
         SliderTheme(
           data: _sliderThemeData.copyWith(
             inactiveTrackColor: Colors.transparent,
+            activeTrackColor: primary,
+            thumbColor: primary,
+            overlayColor: MaterialStateProperty.all(primary.withOpacity(0.2)),
+            trackHeight: 6,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
           ),
           child: Slider(
             min: 0.0,
@@ -110,7 +119,10 @@ class SeekBarState extends State<SeekBar> {
                       .firstMatch("$_remaining")
                       ?.group(1) ??
                   '$_remaining',
-              style: Theme.of(context).textTheme.bodySmall),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.white.withOpacity(0.7),
+                fontWeight: FontWeight.w500,
+              )),
         ),
       ],
     );

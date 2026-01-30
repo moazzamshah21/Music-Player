@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:umarplayer/theme/app_colors.dart';
 import 'package:umarplayer/models/playlist.dart';
@@ -26,46 +27,43 @@ class _LibraryState extends State<Library> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
+    return Column(
       children: [
-        // Main Content
-        Column(
-          children: [
-            // Header
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-              color: AppColors.background,
-              child: SafeArea(
-                bottom: false,
-                child: const Text(
-                  'Your Library',
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+          child: SafeArea(
+            bottom: false,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Your Library',
+                style: GoogleFonts.outfit(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
                 ),
               ),
             ),
-            // Content
-            Expanded(
-              child: Consumer<LibraryProvider>(
-                builder: (context, libraryProvider, _) {
-                  return RefreshIndicator(
-                    onRefresh: () => libraryProvider.loadData(),
-                    color: AppColors.textPrimary,
-                    child: libraryProvider.isLoading
-                        ? const Center(
-                            child: CircularProgressIndicator(
-                              color: AppColors.textPrimary,
-                            ),
-                          )
-                        : _buildContent(context, libraryProvider),
-                  );
-                },
-              ),
-            ),
-          ],
+          ),
+        ),
+        Expanded(
+          child: Consumer<LibraryProvider>(
+            builder: (context, libraryProvider, _) {
+              return RefreshIndicator(
+                onRefresh: () => libraryProvider.loadData(),
+                color: AppColors.neonCyan,
+                child: libraryProvider.isLoading
+                    ? Center(
+                        child: SizedBox(
+                          width: 36,
+                          height: 36,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.neonCyan),
+                        ),
+                      )
+                    : _buildContent(context, libraryProvider),
+              );
+            },
+          ),
         ),
       ],
     );
@@ -98,6 +96,7 @@ class _LibraryState extends State<Library> {
   Widget _buildCreatePlaylistItem(BuildContext context, LibraryProvider controller) {
     return InkWell(
       onTap: () => _createPlaylist(context, controller),
+      borderRadius: BorderRadius.circular(14),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(
@@ -107,13 +106,10 @@ class _LibraryState extends State<Library> {
               height: 56,
               decoration: BoxDecoration(
                 color: AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.neonCyan.withOpacity(0.25)),
               ),
-              child: const Icon(
-                Icons.add,
-                color: AppColors.textPrimary,
-                size: 28,
-              ),
+              child: const Icon(Icons.add_rounded, color: AppColors.neonCyan, size: 28),
             ),
             const SizedBox(width: 16),
             const Text(
@@ -150,21 +146,21 @@ class _LibraryState extends State<Library> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Color(0xFF450AF5),
-                    Color(0xFFC13584),
+                    AppColors.neonMagenta,
                     Color(0xFFE1306C),
-                    Color(0xFFFD1D1D),
                     Color(0xFFF77737),
-                    Color(0xFFFCAF45),
                   ],
                 ),
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.neonMagenta.withOpacity(0.3),
+                    blurRadius: 12,
+                    spreadRadius: 0,
+                  ),
+                ],
               ),
-              child: const Icon(
-                Icons.favorite,
-                color: Colors.white,
-                size: 28,
-              ),
+              child: const Icon(Icons.favorite_rounded, color: Colors.white, size: 28),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -226,18 +222,18 @@ class _LibraryState extends State<Library> {
                     gradient: const LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [
-                        Color(0xFF1DB954),
-                        Color(0xFF1ED760),
-                      ],
+                      colors: [AppColors.neonCyan, AppColors.neonMagenta],
                     ),
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.neonCyan.withOpacity(0.25),
+                        blurRadius: 12,
+                        spreadRadius: 0,
+                      ),
+                    ],
                   ),
-                  child: const Icon(
-                    Icons.download,
-                    color: Colors.white,
-                    size: 28,
-                  ),
+                  child: const Icon(Icons.download_rounded, color: AppColors.deepPurple, size: 28),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -290,17 +286,17 @@ class _LibraryState extends State<Library> {
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(
           children: [
-            // Thumbnail
             Container(
               width: 56,
               height: 56,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(14),
                 color: AppColors.surfaceVariant,
+                border: Border.all(color: AppColors.neonCyan.withOpacity(0.15)),
               ),
               child: playlist.displayImageUrl != null
                   ? ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: BorderRadius.circular(14),
                       child: Image.network(
                         playlist.displayImageUrl!,
                         fit: BoxFit.cover,
@@ -360,10 +356,11 @@ class _LibraryState extends State<Library> {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
+        backgroundColor: AppColors.surfaceVariant,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Text(
           'Create playlist',
-          style: TextStyle(color: AppColors.textPrimary),
+          style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
         ),
         content: TextField(
           controller: nameController,
@@ -394,10 +391,7 @@ class _LibraryState extends State<Library> {
                 Navigator.pop(context, true);
               }
             },
-            child: const Text(
-              'Create',
-              style: TextStyle(color: AppColors.textPrimary),
-            ),
+            child: const Text('Create', style: TextStyle(color: AppColors.neonCyan, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -432,9 +426,9 @@ class _LibraryState extends State<Library> {
   void _showPlaylistOptions(BuildContext context, Playlist playlist, LibraryProvider controller) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.surfaceVariant.withOpacity(0.95),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) => Container(
         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -465,10 +459,11 @@ class _LibraryState extends State<Library> {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
+        backgroundColor: AppColors.surfaceVariant,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Text(
           'Delete playlist',
-          style: TextStyle(color: AppColors.textPrimary),
+          style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
         ),
         content: Text(
           'Are you sure you want to delete "${playlist.name}"?',

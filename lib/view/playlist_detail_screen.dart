@@ -105,21 +105,36 @@ class _PlaylistDetailContent extends StatelessWidget {
       builder: (context, provider, _) {
         if (provider.isLoading) {
           return Scaffold(
-            backgroundColor: AppColors.background,
-            appBar: AppBar(
-              backgroundColor: AppColors.background,
-              elevation: 0,
-              leading: IconButton(
-                icon: const Icon(
-                  Icons.arrow_back,
-                  color: AppColors.textPrimary,
+            body: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppColors.deepPurple, AppColors.violetMid, AppColors.surfaceDark],
                 ),
-                onPressed: () => Navigator.pop(context),
               ),
-            ),
-            body: const Center(
-              child: CircularProgressIndicator(
-                color: AppColors.textPrimary,
+              child: SafeArea(
+                child: Column(
+                  children: [
+                    AppBar(
+                      backgroundColor: Colors.transparent,
+                      elevation: 0,
+                      leading: IconButton(
+                        icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ),
+                    const Expanded(
+                      child: Center(
+                        child: SizedBox(
+                          width: 36,
+                          height: 36,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.neonCyan),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           );
@@ -127,22 +142,35 @@ class _PlaylistDetailContent extends StatelessWidget {
 
         if (provider.playlist == null) {
           return Scaffold(
-            backgroundColor: AppColors.background,
-            appBar: AppBar(
-              backgroundColor: AppColors.background,
-              elevation: 0,
-              leading: IconButton(
-                icon: const Icon(
-                  Icons.arrow_back,
-                  color: AppColors.textPrimary,
+            body: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppColors.deepPurple, AppColors.violetMid, AppColors.surfaceDark],
                 ),
-                onPressed: () => Navigator.pop(context),
               ),
-            ),
-            body: const Center(
-              child: Text(
-                'Playlist not found',
-                style: TextStyle(color: AppColors.textPrimary),
+              child: SafeArea(
+                child: Column(
+                  children: [
+                    AppBar(
+                      backgroundColor: Colors.transparent,
+                      elevation: 0,
+                      leading: IconButton(
+                        icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ),
+                    const Expanded(
+                      child: Center(
+                        child: Text(
+                          'Playlist not found',
+                          style: TextStyle(color: AppColors.textSecondary),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           );
@@ -151,31 +179,34 @@ class _PlaylistDetailContent extends StatelessWidget {
         final playlist = provider.playlist!;
 
         return Scaffold(
-          backgroundColor: AppColors.background,
-          appBar: AppBar(
-            backgroundColor: AppColors.background,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(
-                Icons.arrow_back,
-                color: AppColors.textPrimary,
-              ),
-              onPressed: () => Navigator.pop(context),
-            ),
-            title: Text(
-              playlist.name,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+          body: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [AppColors.deepPurple, AppColors.violetMid, AppColors.surfaceDark],
               ),
             ),
-            actions: [
-              IconButton(
-                icon: const Icon(
-                  Icons.add,
-                  color: AppColors.textPrimary,
-                ),
+            child: Column(
+              children: [
+                AppBar(
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  leading: IconButton(
+                    icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  title: Text(
+                    playlist.name,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  actions: [
+                    IconButton(
+                      icon: const Icon(Icons.add_rounded, color: AppColors.neonCyan),
                 onPressed: () async {
                   final song = await showDialog<MediaItem>(
                     context: context,
@@ -208,13 +239,13 @@ class _PlaylistDetailContent extends StatelessWidget {
                     }
                   }
                 },
-              ),
-            ],
-          ),
-          body: Stack(
-            children: [
-              // Main Content
-              playlist.songs.isEmpty
+                    ),
+                  ],
+                ),
+                Expanded(
+                  child: Stack(
+                    children: [
+                      playlist.songs.isEmpty
                   ? _buildEmptyState()
                   : _buildSongsList(context, playlist, provider),
               // Mini Player - positioned above bottom nav
@@ -246,7 +277,11 @@ class _PlaylistDetailContent extends StatelessWidget {
                       : const SizedBox.shrink();
                 },
               ),
-            ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },

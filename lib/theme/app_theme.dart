@@ -1,43 +1,43 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:umarplayer/theme/app_colors.dart';
 
 class AppTheme {
   static ThemeData get darkTheme {
+    final base = ThemeData.dark().textTheme;
+    final outfit = GoogleFonts.outfitTextTheme(base).apply(
+      bodyColor: AppColors.textPrimary,
+      displayColor: AppColors.textPrimary,
+    );
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      
-      // Color Scheme
+      scaffoldBackgroundColor: AppColors.background,
       colorScheme: const ColorScheme.dark(
-        primary: AppColors.accent,
-        secondary: AppColors.accent,
+        primary: AppColors.brandy,
+        secondary: AppColors.brandyLight,
         surface: AppColors.surface,
-        background: AppColors.background,
-        error: AppColors.accent,
-        onPrimary: AppColors.textPrimary,
-        onSecondary: AppColors.textPrimary,
+        error: AppColors.neonPink,
+        onPrimary: AppColors.background,
+        onSecondary: AppColors.background,
         onSurface: AppColors.textPrimary,
-        onBackground: AppColors.textPrimary,
+        onSurfaceVariant: AppColors.textSecondary,
         onError: AppColors.textPrimary,
       ),
-      
-      // Scaffold
-      scaffoldBackgroundColor: AppColors.background,
-      
-      // AppBar Theme
-      appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.surface,
-        foregroundColor: AppColors.textPrimary,
+      textTheme: outfit,
+      appBarTheme: AppBarTheme(
+        backgroundColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         elevation: 0,
-        centerTitle: false,
-        titleTextStyle: TextStyle(
-          color: AppColors.textPrimary,
+        centerTitle: true,
+        surfaceTintColor: Colors.transparent,
+        titleTextStyle: GoogleFonts.outfit(
           fontSize: 20,
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textPrimary,
         ),
+        iconTheme: const IconThemeData(color: AppColors.textPrimary),
       ),
-      
-      // Bottom Navigation Bar Theme
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: AppColors.navBackground,
         selectedItemColor: AppColors.navActive,
@@ -45,50 +45,64 @@ class AppTheme {
         type: BottomNavigationBarType.fixed,
         elevation: 0,
       ),
-      
-      // Card Theme
       cardTheme: CardThemeData(
-        color: AppColors.surface,
+        color: AppColors.glassWhite,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
         ),
       ),
-      
-      // Divider Theme
       dividerTheme: const DividerThemeData(
         color: AppColors.border,
         thickness: 0.5,
         space: 1,
       ),
-      
-      // Icon Theme
       iconTheme: const IconThemeData(
-        color: AppColors.textPrimary,
+        color: AppColors.brandy,
         size: 24,
       ),
-      
-      // Text Theme
-      textTheme: const TextTheme(
-        displayLarge: TextStyle(color: AppColors.textPrimary),
-        displayMedium: TextStyle(color: AppColors.textPrimary),
-        displaySmall: TextStyle(color: AppColors.textPrimary),
-        headlineLarge: TextStyle(color: AppColors.textPrimary),
-        headlineMedium: TextStyle(color: AppColors.textPrimary),
-        headlineSmall: TextStyle(color: AppColors.textPrimary),
-        titleLarge: TextStyle(color: AppColors.textPrimary),
-        titleMedium: TextStyle(color: AppColors.textPrimary),
-        titleSmall: TextStyle(color: AppColors.textPrimary),
-        bodyLarge: TextStyle(color: AppColors.textPrimary),
-        bodyMedium: TextStyle(color: AppColors.textPrimary),
-        bodySmall: TextStyle(color: AppColors.textSecondary),
-        labelLarge: TextStyle(color: AppColors.textPrimary),
-        labelMedium: TextStyle(color: AppColors.textSecondary),
-        labelSmall: TextStyle(color: AppColors.textTertiary),
+      sliderTheme: SliderThemeData(
+        activeTrackColor: AppColors.brandy,
+        inactiveTrackColor: AppColors.textSecondary.withOpacity(0.3),
+        thumbColor: AppColors.brandy,
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: AppColors.surfaceVariant,
+        hintStyle: const TextStyle(color: AppColors.textSecondary),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.brandy, width: 1.5),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.brandy,
+          foregroundColor: AppColors.background,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: AppColors.surfaceVariant,
+        contentTextStyle: const TextStyle(color: AppColors.textPrimary),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
       ),
     );
   }
-  
-  // Private constructor to prevent instantiation
-  AppTheme._();
 }

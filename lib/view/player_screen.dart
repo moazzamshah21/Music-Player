@@ -24,11 +24,19 @@ class PlayerScreen extends StatelessWidget {
         final currentItem = playerProvider.currentItem;
         if (currentItem == null) {
           return Scaffold(
-            backgroundColor: AppColors.background,
-            body: const Center(
-              child: Text(
-                'No song playing',
-                style: TextStyle(color: AppColors.textPrimary),
+            body: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppColors.deepPurple, AppColors.surfaceDark],
+                ),
+              ),
+              child: const Center(
+                child: Text(
+                  'no song playing',
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
+                ),
               ),
             ),
           );
@@ -41,51 +49,65 @@ class PlayerScreen extends StatelessWidget {
             : 0.0;
 
         return Scaffold(
-          backgroundColor: AppColors.background,
-          body: SafeArea(
+          body: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.deepPurple,
+                  AppColors.violetMid,
+                  AppColors.surfaceDark,
+                ],
+              ),
+            ),
+            child: SafeArea(
             child: Column(
               children: [
                 // Top bar
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       IconButton(
-                        icon: const Icon(
-                          Icons.keyboard_arrow_down,
-                          color: AppColors.textPrimary,
-                          size: 32,
-                        ),
+                        icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.textPrimary, size: 32),
                         onPressed: () => Navigator.of(context).pop(),
                       ),
                       Column(
                         children: [
-                          const Text(
-                            'PLAYING FROM ALBUM',
+                          Text(
+                            'RΛVE',
                             style: TextStyle(
-                              color: AppColors.textSecondary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              letterSpacing: 1.2,
+                              color: AppColors.neonCyan.withOpacity(0.9),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 2,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            currentItem.album ?? 'Unknown Album',
+                            'PLAYING FROM',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            currentItem.album ?? 'Unknown',
                             style: const TextStyle(
                               color: AppColors.textPrimary,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ],
                       ),
                       IconButton(
-                        icon: const Icon(
-                          Icons.more_vert,
-                          color: AppColors.textPrimary,
-                        ),
+                        icon: const Icon(Icons.more_vert_rounded, color: AppColors.textPrimary),
                         onPressed: () => _showOptionsMenu(context),
                       ),
                     ],
@@ -103,17 +125,22 @@ class PlayerScreen extends StatelessWidget {
                           children: [
                             Container(
                               decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(24),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.3),
-                                    blurRadius: 20,
-                                    spreadRadius: 5,
+                                    color: AppColors.neonCyan.withOpacity(0.15),
+                                    blurRadius: 32,
+                                    spreadRadius: 0,
+                                  ),
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.35),
+                                    blurRadius: 24,
+                                    spreadRadius: -4,
                                   ),
                                 ],
                               ),
                               child: ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(24),
                                 child: currentItem.imageUrl != null && currentItem.imageUrl!.isNotEmpty
                                     ? CachedNetworkImage(
                                         imageUrl: currentItem.imageUrl!,
@@ -128,50 +155,37 @@ class PlayerScreen extends StatelessWidget {
                                         ),
                                         errorWidget: (context, url, error) => Container(
                                           color: AppColors.surfaceVariant,
-                                          child: const Icon(
-                                            Icons.music_note,
-                                            color: AppColors.textTertiary,
-                                            size: 80,
-                                          ),
+                                          child: const Icon(Icons.music_note_rounded, color: AppColors.neonCyan, size: 80),
                                         ),
                                       )
                                     : Container(
                                         color: AppColors.surfaceVariant,
-                                        child: const Icon(
-                                          Icons.music_note,
-                                          color: AppColors.textTertiary,
-                                          size: 80,
-                                        ),
+                                        child: const Icon(Icons.music_note_rounded, color: AppColors.neonCyan, size: 80),
                                       ),
                               ),
                             ),
                             // Buffering overlay (during playback)
                             if (playerProvider.isBuffering && !playerProvider.isLoading)
                               Positioned(
-                                bottom: 8,
-                                left: 8,
-                                right: 8,
+                                bottom: 12,
+                                left: 12,
+                                right: 12,
                                 child: LinearProgressIndicator(
                                   backgroundColor: AppColors.border,
-                                  valueColor: const AlwaysStoppedAnimation<Color>(
-                                    AppColors.textPrimary,
-                                  ),
+                                  valueColor: const AlwaysStoppedAnimation<Color>(AppColors.neonCyan),
                                 ),
                               ),
-                            // Loading overlay
                             if (playerProvider.isLoading)
                               Container(
                                 decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(8),
+                                  borderRadius: BorderRadius.circular(24),
                                   color: Colors.black.withOpacity(0.5),
                                 ),
                                 child: Center(
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      const CircularProgressIndicator(
-                                        color: AppColors.textPrimary,
-                                      ),
+                                      const CircularProgressIndicator(color: AppColors.neonCyan),
                                       if (playerProvider.loadingMessage.isNotEmpty) ...[
                                         const SizedBox(height: 16),
                                         Text(
@@ -208,14 +222,14 @@ class PlayerScreen extends StatelessWidget {
                               style: const TextStyle(
                                 color: AppColors.textPrimary,
                                 fontSize: 24,
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w700,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              currentItem.artist ?? 'Unknown Artist',
+                              currentItem.artist ?? 'Unknown',
                               style: const TextStyle(
                                 color: AppColors.textSecondary,
                                 fontSize: 16,
@@ -230,12 +244,8 @@ class PlayerScreen extends StatelessWidget {
                         builder: (context, playerProvider, _) {
                           return IconButton(
                             icon: Icon(
-                              playerProvider.isLiked
-                                  ? Icons.favorite
-                                  : Icons.favorite_outline,
-                              color: playerProvider.isLiked
-                                  ? Colors.red
-                                  : AppColors.textPrimary,
+                              playerProvider.isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                              color: playerProvider.isLiked ? AppColors.neonMagenta : AppColors.textSecondary,
                               size: 28,
                             ),
                             onPressed: () => playerProvider.toggleFavorite(),
@@ -253,13 +263,12 @@ class PlayerScreen extends StatelessWidget {
                     children: [
                       SliderTheme(
                         data: SliderTheme.of(context).copyWith(
-                          trackHeight: 4,
-                          thumbShape: const RoundSliderThumbShape(
-                            enabledThumbRadius: 6,
-                          ),
-                          overlayShape: const RoundSliderOverlayShape(
-                            overlayRadius: 12,
-                          ),
+                          trackHeight: 6,
+                          activeTrackColor: AppColors.neonCyan,
+                          inactiveTrackColor: AppColors.textSecondary.withOpacity(0.3),
+                          thumbColor: AppColors.neonCyan,
+                          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+                          overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
                         ),
                         child: Consumer<PlayerProvider>(
                           builder: (context, playerProvider, _) {
@@ -267,18 +276,16 @@ class PlayerScreen extends StatelessWidget {
                               value: progress.clamp(0.0, 1.0),
                               onChangeStart: (_) => playerProvider.setSeeking(true),
                               onChanged: (value) {
-                                final newPosition = Duration(
+                                playerProvider.updatePosition(Duration(
                                   milliseconds: (value * duration.inMilliseconds).toInt(),
-                                );
-                                playerProvider.updatePosition(newPosition);
+                                ));
                               },
                               onChangeEnd: (value) {
-                                final newPosition = Duration(
+                                playerProvider.seek(Duration(
                                   milliseconds: (value * duration.inMilliseconds).toInt(),
-                                );
-                                playerProvider.seek(newPosition);
+                                ));
                               },
-                              activeColor: AppColors.textPrimary,
+                              activeColor: AppColors.neonCyan,
                               inactiveColor: AppColors.border,
                             );
                           },
@@ -291,16 +298,18 @@ class PlayerScreen extends StatelessWidget {
                             children: [
                               Text(
                                 _formatDuration(playerProvider.position),
-                                style: const TextStyle(
-                                  color: AppColors.textSecondary,
+                                style: TextStyle(
+                                  color: AppColors.textSecondary.withOpacity(0.9),
                                   fontSize: 12,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
                               Text(
                                 _formatDuration(playerProvider.duration),
-                                style: const TextStyle(
-                                  color: AppColors.textSecondary,
+                                style: TextStyle(
+                                  color: AppColors.textSecondary.withOpacity(0.9),
                                   fontSize: 12,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
                             ],
@@ -317,122 +326,80 @@ class PlayerScreen extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Shuffle
-                      Consumer<PlayerProvider>(
-                        builder: (context, playerProvider, _) {
-                          return Column(
-                            children: [
-                              IconButton(
-                                icon: Icon(
-                                  Icons.shuffle,
-                                  color: playerProvider.isShuffleEnabled
-                                      ? AppColors.accent
-                                      : AppColors.textPrimary,
-                                  size: 24,
-                                ),
-                                onPressed: () => playerProvider.toggleShuffle(),
-                              ),
-                              if (playerProvider.isShuffleEnabled)
-                                Container(
-                                  width: 4,
-                                  height: 4,
-                                  decoration: const BoxDecoration(
-                                    color: AppColors.accent,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                            ],
-                          );
-                        },
-                      ),
-                      // Previous
                       Consumer<PlayerProvider>(
                         builder: (context, playerProvider, _) {
                           return IconButton(
-                            icon: const Icon(
-                              Icons.skip_previous,
-                              color: AppColors.textPrimary,
-                              size: 32,
+                            icon: Icon(
+                              Icons.shuffle_rounded,
+                              color: playerProvider.isShuffleEnabled ? AppColors.neonCyan : AppColors.textSecondary,
+                              size: 26,
                             ),
+                            onPressed: () => playerProvider.toggleShuffle(),
+                          );
+                        },
+                      ),
+                      Consumer<PlayerProvider>(
+                        builder: (context, playerProvider, _) {
+                          return IconButton(
+                            icon: const Icon(Icons.skip_previous_rounded, color: AppColors.textPrimary, size: 34),
                             onPressed: () => playerProvider.playPrevious(),
                           );
                         },
                       ),
-                      // Play/Pause
                       Consumer<PlayerProvider>(
                         builder: (context, playerProvider, _) {
                           final isLoading = playerProvider.isLoading;
                           return Container(
-                            width: 64,
-                            height: 64,
+                            width: 72,
+                            height: 72,
                             decoration: BoxDecoration(
-                              color: isLoading
-                                  ? AppColors.surfaceVariant
-                                  : AppColors.textPrimary,
                               shape: BoxShape.circle,
+                              color: AppColors.neonCyan.withOpacity(0.2),
+                              border: Border.all(color: AppColors.neonCyan.withOpacity(0.7), width: 2),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.neonCyan.withOpacity(0.4),
+                                  blurRadius: 20,
+                                  spreadRadius: 0,
+                                ),
+                              ],
                             ),
                             child: isLoading
                                 ? const Center(
                                     child: SizedBox(
-                                      width: 24,
-                                      height: 24,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: AppColors.textPrimary,
-                                      ),
+                                      width: 28,
+                                      height: 28,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.neonCyan),
                                     ),
                                   )
                                 : IconButton(
                                     icon: Icon(
-                                      playerProvider.isPlaying
-                                          ? Icons.pause
-                                          : Icons.play_arrow,
-                                      color: AppColors.background,
-                                      size: 32,
+                                      playerProvider.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                                      color: AppColors.neonCyan,
+                                      size: 36,
                                     ),
                                     onPressed: isLoading ? null : () => playerProvider.playPause(),
                                   ),
                           );
                         },
                       ),
-                      // Next
                       Consumer<PlayerProvider>(
                         builder: (context, playerProvider, _) {
                           return IconButton(
-                            icon: const Icon(
-                              Icons.skip_next,
-                              color: AppColors.textPrimary,
-                              size: 32,
-                            ),
+                            icon: const Icon(Icons.skip_next_rounded, color: AppColors.textPrimary, size: 34),
                             onPressed: () => playerProvider.playNext(),
                           );
                         },
                       ),
-                      // Repeat
                       Consumer<PlayerProvider>(
                         builder: (context, playerProvider, _) {
-                          return Column(
-                            children: [
-                              IconButton(
-                                icon: Icon(
-                                  Icons.repeat,
-                                  color: playerProvider.isRepeatEnabled
-                                      ? AppColors.accent
-                                      : AppColors.textPrimary,
-                                  size: 24,
-                                ),
-                                onPressed: () => playerProvider.toggleRepeat(),
-                              ),
-                              if (playerProvider.isRepeatEnabled)
-                                Container(
-                                  width: 4,
-                                  height: 4,
-                                  decoration: const BoxDecoration(
-                                    color: AppColors.accent,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                            ],
+                          return IconButton(
+                            icon: Icon(
+                              Icons.repeat_rounded,
+                              color: playerProvider.isRepeatEnabled ? AppColors.neonCyan : AppColors.textSecondary,
+                              size: 26,
+                            ),
+                            onPressed: () => playerProvider.toggleRepeat(),
                           );
                         },
                       ),
@@ -441,6 +408,7 @@ class PlayerScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 32),
               ],
+            ),
             ),
           ),
         );
@@ -456,9 +424,9 @@ class PlayerScreen extends StatelessWidget {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.surfaceVariant.withOpacity(0.95),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) => Container(
         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -559,7 +527,8 @@ class PlayerScreen extends StatelessWidget {
     await showDialog(
       context: context,
       builder: (context) => Dialog(
-        backgroundColor: AppColors.surface,
+        backgroundColor: AppColors.surfaceVariant,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -671,9 +640,9 @@ class PlayerScreen extends StatelessWidget {
     if (!context.mounted) return;
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.surfaceVariant.withOpacity(0.95),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) => Container(
         constraints: BoxConstraints(

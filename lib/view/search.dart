@@ -24,64 +24,56 @@ class _SearchState extends State<Search> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
+    return Column(
       children: [
-        // Main Content
-        Column(
-          children: [
-            // Search Bar
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-              color: AppColors.background,
-              child: SafeArea(
-                bottom: false,
-                child: Container(
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(4),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+          child: SafeArea(
+            bottom: false,
+            child: Container(
+              height: 52,
+              decoration: BoxDecoration(
+                color: AppColors.glassWhite,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white.withOpacity(0.1)),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.neonCyan.withOpacity(0.06),
+                    blurRadius: 12,
+                    spreadRadius: 0,
                   ),
-                  child: TextField(
-                    controller: _textController,
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 16,
-                    ),
-                    decoration: const InputDecoration(
-                      hintText: 'Search',
-                      hintStyle: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 16,
-                      ),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                    ),
-                    onSubmitted: (value) {
-                      Provider.of<SearchProvider>(context, listen: false).performSearch(value);
-                    },
-                    onChanged: (value) {
-                      if (value.isEmpty) {
-                        Provider.of<SearchProvider>(context, listen: false).clearSearch();
-                      }
-                    },
-                  ),
-                ),
+                ],
               ),
-            ),
-            // Content
-            Expanded(
-              child: Consumer<SearchProvider>(
-                builder: (context, searchProvider, _) {
-                  return searchProvider.isSearching
-                      ? _buildSearchResults(context, searchProvider)
-                      : _buildRecentSearches(context, searchProvider);
+              child: TextField(
+                controller: _textController,
+                style: const TextStyle(color: AppColors.textPrimary, fontSize: 16),
+                decoration: InputDecoration(
+                  hintText: 'search songs, artists...',
+                  hintStyle: TextStyle(color: AppColors.textSecondary.withOpacity(0.9), fontSize: 15),
+                  prefixIcon: Icon(Icons.search_rounded, color: AppColors.neonCyan.withOpacity(0.9), size: 24),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                ),
+                onSubmitted: (value) {
+                  Provider.of<SearchProvider>(context, listen: false).performSearch(value);
+                },
+                onChanged: (value) {
+                  if (value.isEmpty) {
+                    Provider.of<SearchProvider>(context, listen: false).clearSearch();
+                  }
                 },
               ),
             ),
-          ],
+          ),
+        ),
+        Expanded(
+          child: Consumer<SearchProvider>(
+            builder: (context, searchProvider, _) {
+              return searchProvider.isSearching
+                  ? _buildSearchResults(context, searchProvider)
+                  : _buildRecentSearches(context, searchProvider);
+            },
+          ),
         ),
       ],
     );
@@ -89,32 +81,29 @@ class _SearchState extends State<Search> {
 
   Widget _buildRecentSearches(BuildContext context, SearchProvider searchProvider) {
     if (searchProvider.recentSearches.isEmpty) {
-      return const Center(
+      return Center(
         child: Text(
-          'No recent searches',
-          style: TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: 16,
-          ),
+          'no recent searches',
+          style: TextStyle(color: AppColors.textSecondary.withOpacity(0.9), fontSize: 15),
         ),
       );
     }
 
     return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       children: [
         const SizedBox(height: 8),
         const Text(
-          'Recent searches',
+          'Recent',
           style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
+            color: AppColors.neonCyan,
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
           ),
         ),
         const SizedBox(height: 16),
         ...searchProvider.recentSearches.map((search) => _buildRecentSearchItem(context, search, searchProvider)),
-        const SizedBox(height: 140), // Space for mini player + bottom nav
+        const SizedBox(height: 140),
       ],
     );
   }
@@ -125,17 +114,18 @@ class _SearchState extends State<Search> {
         _textController.text = item.title;
         searchProvider.performSearch(item.title);
       },
+      borderRadius: BorderRadius.circular(14),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(
           children: [
-            // Circular Image
             Container(
               width: 56,
               height: 56,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: AppColors.surfaceVariant,
+                border: Border.all(color: AppColors.neonCyan.withOpacity(0.2)),
               ),
               child: item.imageUrl != null && item.imageUrl!.isNotEmpty
                   ? ClipOval(
@@ -199,9 +189,11 @@ class _SearchState extends State<Search> {
 
   Widget _buildSearchResults(BuildContext context, SearchProvider searchProvider) {
     if (searchProvider.isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(
-          color: AppColors.textPrimary,
+      return Center(
+        child: SizedBox(
+          width: 36,
+          height: 36,
+          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.neonCyan),
         ),
       );
     }
@@ -211,18 +203,12 @@ class _SearchState extends State<Search> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.search_off,
-              color: AppColors.textSecondary,
-              size: 64,
-            ),
+            Icon(Icons.search_off_rounded, color: AppColors.textSecondary.withOpacity(0.8), size: 56),
             const SizedBox(height: 16),
             Text(
-              'No results found for "${searchProvider.currentQuery}"',
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 16,
-              ),
+              'no results for "${searchProvider.currentQuery}"',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.textSecondary.withOpacity(0.9), fontSize: 15),
             ),
           ],
         ),
@@ -230,45 +216,45 @@ class _SearchState extends State<Search> {
     }
 
     return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       children: [
         const SizedBox(height: 8),
-        Text(
-          'Search results for "${searchProvider.currentQuery}"',
-          style: const TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
+        const Text(
+          'Results',
+          style: TextStyle(
+            color: AppColors.neonCyan,
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
           ),
         ),
         const SizedBox(height: 16),
         ...searchProvider.searchResults.map((item) => _buildSearchResultItem(context, item, searchProvider)),
-        const SizedBox(height: 140), // Space for mini player + bottom nav
+        const SizedBox(height: 140),
       ],
     );
   }
 
   Widget _buildSearchResultItem(BuildContext context, MediaItem item, SearchProvider searchProvider) {
     final playerProvider = Provider.of<PlayerProvider>(context, listen: false);
-    
     return InkWell(
       onTap: () => _playMediaItem(context, item, searchProvider, playerProvider),
       onLongPress: () => _showAddToPlaylistMenu(context, item),
+      borderRadius: BorderRadius.circular(14),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(
           children: [
-            // Thumbnail
             Container(
               width: 56,
               height: 56,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(12),
                 color: AppColors.surfaceVariant,
+                border: Border.all(color: AppColors.neonCyan.withOpacity(0.15)),
               ),
               child: item.imageUrl != null && item.imageUrl!.isNotEmpty
                   ? ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: BorderRadius.circular(12),
                       child: Image.network(
                         item.imageUrl!,
                         fit: BoxFit.cover,
@@ -378,9 +364,9 @@ class _SearchState extends State<Search> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.surfaceVariant.withOpacity(0.95),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) => Container(
         padding: const EdgeInsets.symmetric(vertical: 8),
